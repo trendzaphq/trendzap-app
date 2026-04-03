@@ -11,7 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Wallet, Copy, ExternalLink, LogOut, ChevronDown, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { createPublicClient, http, formatEther } from "viem"
+import { avalancheFuji } from "viem/chains"
+import { EXPLORER_URL, RPC_URL } from "@/lib/contracts"
 
 interface WalletButtonProps {
   variant?: "default" | "compact"
@@ -21,9 +24,31 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
   const { ready, authenticated, user, login, logout } = usePrivy()
   const { wallets } = useWallets()
   const [copied, setCopied] = useState(false)
+  const [balance, setBalance] = useState<string | null>(null)
 
   const activeWallet = wallets[0]
   const address = activeWallet?.address || user?.wallet?.address
+
+  // Fetch AVAX balance
+  useEffect(() => {
+    if (!address) return
+    const client = createPublicClient({
+      chain: avalancheFuji,
+      transport: http(RPC_URL),
+    })
+    client
+      .getBalance({ address: address as `0x${string}` })
+      .then((bal) => setBalance(formatEther(bal)))
+      .catch(() => setBalance(null))
+
+    const interval = setInterval(() => {
+      client
+        .getBalance({ address: address as `0x${string}` })
+        .then((bal) => setBalance(formatEther(bal)))
+        .catch(() => {})
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [address])
 
   const truncateAddress = (addr: string) => {
     if (!addr) return ""
@@ -40,7 +65,7 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
 
   const openExplorer = () => {
     if (address) {
-      window.open(`https://basescan.org/address/${address}`, "_blank")
+      window.open(`${EXPLORER_URL}/address/${address}`, "_blank")
     }
   }
 
@@ -93,11 +118,10 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
         <div className="px-2 py-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Balance</span>
-            <span className="font-semibold text-primary">$0.00 USDC</span>
+            <span className="font-semibold text-primary">
+              {balance !== null ? `${parseFloat(balance).toFixed(4)} AVAX` : "—"}
+            </span>
           </div>
-          <Button size="sm" className="w-full bg-primary hover:bg-primary/90">
-            Deposit USDC
-          </Button>
         </div>
 
         <DropdownMenuSeparator />
@@ -107,7 +131,7 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={openExplorer} className="cursor-pointer gap-2">
           <ExternalLink className="h-4 w-4" />
-          View on BaseScan
+          View on SnowTrace
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout} className="cursor-pointer gap-2 text-destructive focus:text-destructive">

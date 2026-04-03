@@ -15,8 +15,7 @@ const nextConfig = {
     unoptimized: true,
   },
 
-  // Turbopack config is NOT supported this way in Next.js 15 stable
-  // Remove the entire turbopack block — it does nothing and causes warnings
+  turbopack: {},
 
   webpack: (config, { isServer }) => {
     // Only apply these aliases on client (browser) bundle

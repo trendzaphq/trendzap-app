@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build --webpack",
+    "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start"
@@ -58,9 +58,9 @@
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "permissionless": "latest",
-    "react": "18.2.0",
+    "react": "^19.0.0",
     "react-day-picker": "9.8.0",
-    "react-dom": "18.2.0",
+    "react-dom": "^19.0.0",
     "react-hook-form": "^7.60.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.4",
@@ -68,13 +68,15 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
+    "viem": "^2.17.0",
+    "ethers": "^6.13.0",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.8.32",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",

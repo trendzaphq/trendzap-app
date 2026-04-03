@@ -7,6 +7,36 @@ interface PrivyClientProviderProps {
   children: ReactNode
 }
 
+// Avalanche C-Chain mainnet (primary)
+const avalancheMainnet = {
+  id: 43114,
+  name: "Avalanche",
+  network: "avalanche",
+  nativeCurrency: { name: "Avalanche", symbol: "AVAX", decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.NEXT_PUBLIC_RPC_URL || "https://avax-mainnet.g.alchemy.com/v2/A4flIcxFitRYpoWndHzTe"] },
+    public: { http: ["https://api.avax.network/ext/bc/C/rpc"] },
+  },
+  blockExplorers: {
+    default: { name: "Snowtrace", url: "https://snowtrace.io" },
+  },
+}
+
+// Avalanche Fuji testnet (kept for reference/testing)
+const avalancheFuji = {
+  id: 43113,
+  name: "Avalanche Fuji",
+  network: "avalanche-fuji",
+  nativeCurrency: { name: "Avalanche", symbol: "AVAX", decimals: 18 },
+  rpcUrls: {
+    default: { http: ["https://api.avax-test.network/ext/bc/C/rpc"] },
+    public: { http: ["https://api.avax-test.network/ext/bc/C/rpc"] },
+  },
+  blockExplorers: {
+    default: { name: "Snowtrace", url: "https://testnet.snowtrace.io" },
+  },
+}
+
 export function PrivyClientProvider({ children }: PrivyClientProviderProps) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "demo-app-id"
 
@@ -14,81 +44,23 @@ export function PrivyClientProvider({ children }: PrivyClientProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        // Display settings
         appearance: {
           theme: "dark",
-          accentColor: "#00E5BE", // TrendZap primary cyan
+          accentColor: "#00E5BE",
           logo: "/trendzap-logo.svg",
           showWalletLoginFirst: false,
         },
-        // Login methods
         loginMethods: ["email", "wallet", "google", "twitter"],
-        // Embedded wallets for non-crypto users
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
         },
-        // External wallets to support
         externalWallets: {
           coinbaseWallet: {
             connectionOptions: "smartWalletOnly",
           },
         },
-        // Removed: solanaRpcServers, solanaCluster, and Solana from supportedChains
-
-        // Default chain (Base for USDC)
-        defaultChain: {
-          id: 8453,
-          name: "Base",
-          network: "base",
-          nativeCurrency: {
-            name: "Ethereum",
-            symbol: "ETH",
-            decimals: 18,
-          },
-          rpcUrls: {
-            default: {
-              http: ["https://mainnet.base.org"],
-            },
-            public: {
-              http: ["https://mainnet.base.org"],
-            },
-          },
-          blockExplorers: {
-            default: {
-              name: "BaseScan",
-              url: "https://basescan.org",
-            },
-          },
-        },
-        // EVM chains only (Base and Arbitrum)
-        supportedChains: [
-          {
-            id: 8453,
-            name: "Base",
-            network: "base",
-            nativeCurrency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-            rpcUrls: {
-              default: { http: ["https://mainnet.base.org"] },
-              public: { http: ["https://mainnet.base.org"] },
-            },
-            blockExplorers: {
-              default: { name: "BaseScan", url: "https://basescan.org" },
-            },
-          },
-          {
-            id: 42161,
-            name: "Arbitrum One",
-            network: "arbitrum",
-            nativeCurrency: { name: "Ethereum", symbol: "ETH", decimals: 18 },
-            rpcUrls: {
-              default: { http: ["https://arb1.arbitrum.io/rpc"] },
-              public: { http: ["https://arb1.arbitrum.io/rpc"] },
-            },
-            blockExplorers: {
-              default: { name: "Arbiscan", url: "https://arbiscan.io" },
-            },
-          },
-        ],
+        defaultChain: avalancheMainnet,
+        supportedChains: [avalancheMainnet, avalancheFuji],
       }}
     >
       {children}

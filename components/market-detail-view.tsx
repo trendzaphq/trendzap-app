@@ -18,19 +18,40 @@ import {
   Activity,
   BarChart3,
   Zap,
+  Loader2,
+  Trophy,
 } from "lucide-react"
+import { useMarket, useBuyShares, useClaimWinnings, useUserPosition } from "@/hooks/use-market"
+import { formatEther } from "viem"
+import { EXPLORER_URL } from "@/lib/contracts"
+
+function formatTimeRemaining(endTimeUnix: number): string {
+  const now = Math.floor(Date.now() / 1000)
+  const diff = endTimeUnix - now
+  if (diff <= 0) return "Ended"
+  const hours = Math.floor(diff / 3600)
+  const minutes = Math.floor((diff % 3600) / 60)
+  if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`
+  return `${hours}h ${minutes}m`
+}
 
 interface MarketDetailViewProps {
   marketId: string
 }
 
 export function MarketDetailView({ marketId }: MarketDetailViewProps) {
+  const numericId = parseInt(marketId, 10)
+  const { market: onChainMarket, loading: marketLoading, refetch } = useMarket(numericId)
+  const { buyShares, txHash, loading: buyLoading, error: buyError } = useBuyShares()
+  const { claim, loading: claimLoading } = useClaimWinnings()
+  const position = useUserPosition(numericId)
+
   const [betAmount, setBetAmount] = useState("")
   const [selectedPosition, setSelectedPosition] = useState<"over" | "under" | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
 
-  // Mock data
-  const market = {
+  // Fallback mock data for when contracts aren't deployed yet
+  const mockMarket = {
     platform: "tiktok",
     thumbnail: "/viral-dance-tiktok.jpg",
     title: "Epic dance trend taking over FYP - Will it hit 10M views?",
@@ -46,23 +67,84 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
     sourceUrl: "https://tiktok.com/@user/video/123",
   }
 
-  const totalPool = market.overPool + market.underPool
-  const overPercentage = (market.overPool / totalPool) * 100
-  const underPercentage = (market.underPool / totalPool) * 100
+  // Derive display values from on-chain data or fallback to mock
+  const isLive = !!onChainMarket
+  const market = isLive
+    ? {
+        platform: onChainMarket.platform,
+        thumbnail: "/viral-dance-tiktok.jpg",
+        title: `Will ${onChainMarket.postUrl} hit ${Number(onChainMarket.threshold / BigInt(1e12)) / 1e6}M ${onChainMarket.metricType}?`,
+        metric: onChainMarket.metricType.charAt(0).toUpperCase() + onChainMarket.metricType.slice(1),
+        threshold: Number(onChainMarket.threshold),
+        currentValue: 0, // live metric from oracle — not on-chain
+        overPool: onChainMarket.priceOver,
+        underPool: onChainMarket.priceUnder,
+        totalBets: 0,
+        endsIn: formatTimeRemaining(onChainMarket.endTime),
+        endsAt: new Date(onChainMarket.endTime * 1000),
+        creator: onChainMarket.creator,
+        sourceUrl: onChainMarket.postUrl,
+        totalVolume: onChainMarket.totalVolume,
+        poolBalance: onChainMarket.poolBalance,
+        status: onChainMarket.status,
+        outcome: onChainMarket.outcome,
+      }
+    : { ...mockMarket, totalVolume: "0", poolBalance: "0", status: "ACTIVE", outcome: "NONE" }
+
+  // Pool percentages — for live markets use LMSR prices (priceOver % / priceUnder %)
+  const totalPool = market.overPool + market.underPool || 1
+  const overPercentage = isLive ? market.overPool : (market.overPool / totalPool) * 100
+  const underPercentage = isLive ? market.underPool : (market.underPool / totalPool) * 100
 
   const calculatePayout = () => {
     if (!betAmount || !selectedPosition) return 0
     const amount = Number.parseFloat(betAmount)
+    if (isLive) {
+      // LMSR: approximate payout = amount / price * 0.97
+      const price = selectedPosition === "over" ? market.overPool / 100 : market.underPool / 100
+      return price > 0 ? (amount / price) * 0.97 : 0
+    }
     if (selectedPosition === "over") {
-      return amount * (totalPool / market.overPool) * 0.97 // 3% fee
+      return amount * (totalPool / market.overPool) * 0.97
     } else {
       return amount * (totalPool / market.underPool) * 0.97
     }
   }
 
-  const placeBet = () => {
-    setShowSuccess(true)
-    setTimeout(() => setShowSuccess(false), 3000)
+  const placeBet = async () => {
+    if (!betAmount || !selectedPosition) return
+    if (isLive) {
+      try {
+        await buyShares(numericId, selectedPosition === "over", betAmount)
+        setShowSuccess(true)
+        refetch()
+        setTimeout(() => setShowSuccess(false), 5000)
+      } catch {
+        // error is already captured in buyError
+      }
+    } else {
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 3000)
+    }
+  }
+
+  const handleClaim = async () => {
+    await claim(numericId)
+    refetch()
+  }
+
+  const isResolved = market.status === "RESOLVED"
+  const hasWinningPosition =
+    position &&
+    ((market.outcome === "OVER" && position.overShares > 0n) ||
+      (market.outcome === "UNDER" && position.underShares > 0n))
+
+  if (marketLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -102,7 +184,9 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               </div>
               <div className="flex items-center gap-1 text-foreground">
                 <DollarSign className="h-4 w-4 text-primary" />
-                <span className="font-mono drop-shadow">${totalPool.toLocaleString()}</span>
+                <span className="font-mono drop-shadow">
+                  {isLive ? `${parseFloat(market.totalVolume).toFixed(3)} AVAX` : `$${totalPool.toLocaleString()}`}
+                </span>
               </div>
             </div>
           </div>
@@ -152,7 +236,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                     <TrendingUp className="h-4 w-4" />
                     {"Over"}
                   </span>
-                  <span className="font-mono">${market.overPool.toLocaleString()}</span>
+                  <span className="font-mono">{isLive ? `${market.overPool}%` : `$${market.overPool.toLocaleString()}`}</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div
@@ -169,7 +253,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                     <TrendingDown className="h-4 w-4" />
                     {"Under"}
                   </span>
-                  <span className="font-mono">${market.underPool.toLocaleString()}</span>
+                  <span className="font-mono">{isLive ? `${market.underPool}%` : `$${market.underPool.toLocaleString()}`}</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div
@@ -194,6 +278,55 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                   <Zap className="h-5 w-5 fill-primary" />
                   <span className="font-semibold">{"Bet placed successfully!"}</span>
                 </div>
+                {txHash && (
+                  <a
+                    href={`${EXPLORER_URL}/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground underline mt-1 block"
+                  >
+                    View on Explorer
+                  </a>
+                )}
+              </div>
+            )}
+
+            {buyError && (
+              <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <span className="text-destructive text-sm">{buyError.slice(0, 120)}</span>
+              </div>
+            )}
+
+            {/* Claim Winnings for resolved markets */}
+            {isResolved && hasWinningPosition && (
+              <div className="mb-4 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <Trophy className="h-5 w-5 text-primary" />
+                  <span className="font-semibold text-primary">You won! Claim your winnings.</span>
+                </div>
+                <Button onClick={handleClaim} disabled={claimLoading} className="w-full gap-2">
+                  {claimLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4" />}
+                  Claim Winnings
+                </Button>
+              </div>
+            )}
+
+            {/* User Position */}
+            {position && (position.overShares > 0n || position.underShares > 0n) && (
+              <div className="mb-4 p-3 bg-muted/50 rounded-lg border border-border">
+                <div className="text-xs text-muted-foreground mb-1">Your Position</div>
+                {position.overShares > 0n && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-primary font-semibold">Over Shares</span>
+                    <span className="font-mono">{formatEther(position.overShares)}</span>
+                  </div>
+                )}
+                {position.underShares > 0n && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-destructive font-semibold">Under Shares</span>
+                    <span className="font-mono">{formatEther(position.underShares)}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -243,7 +376,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
 
             {/* Amount Input */}
             <div className="space-y-3">
-              <Label htmlFor="bet-amount">{"Bet Amount (USDC)"}</Label>
+              <Label htmlFor="bet-amount">{isLive ? "Bet Amount (AVAX)" : "Bet Amount (USDC)"}</Label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
@@ -275,7 +408,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               <div className="p-4 bg-muted/50 rounded-lg space-y-2 border border-border animate-slide-up">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Your bet"}</span>
-                  <span className="font-mono font-semibold">${betAmount} USDC</span>
+                  <span className="font-mono font-semibold">{isLive ? `${betAmount} AVAX` : `$${betAmount} USDC`}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Position"}</span>
@@ -287,7 +420,9 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Potential payout"}</span>
-                  <span className="font-mono font-semibold text-primary">${calculatePayout().toFixed(2)} USDC</span>
+                  <span className="font-mono font-semibold text-primary">
+                    {isLive ? `${calculatePayout().toFixed(4)} AVAX` : `$${calculatePayout().toFixed(2)} USDC`}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-border">
                   <span className="text-muted-foreground">{"Platform fee (3%)"}</span>
@@ -299,11 +434,15 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <Button
               className="w-full gap-2 h-12 text-base font-semibold"
               size="lg"
-              disabled={!betAmount || !selectedPosition}
+              disabled={!betAmount || !selectedPosition || buyLoading || isResolved}
               onClick={placeBet}
             >
-              <Zap className="h-5 w-5 fill-current" />
-              {"Zap It!"}
+              {buyLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Zap className="h-5 w-5 fill-current" />
+              )}
+              {buyLoading ? "Placing Bet..." : isResolved ? "Market Resolved" : "Zap It!"}
             </Button>
 
             <Button variant="ghost" className="w-full gap-2" size="sm">
@@ -341,16 +480,34 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{"Market Creator"}</span>
-                <span className="font-semibold">@{market.creator}</span>
+                <span className="font-semibold font-mono text-sm">
+                  {isLive ? `${market.creator.slice(0, 6)}...${market.creator.slice(-4)}` : `@${market.creator}`}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{"Created"}</span>
-                <span>{"2 hours ago"}</span>
+                <span className="text-muted-foreground">{"Status"}</span>
+                <Badge variant={market.status === "ACTIVE" ? "default" : "secondary"}>
+                  {market.status}
+                </Badge>
               </div>
+              {isLive && market.outcome !== "NONE" && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{"Outcome"}</span>
+                  <span className={`font-semibold ${market.outcome === "OVER" ? "text-primary" : "text-destructive"}`}>
+                    {market.outcome}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{"Resolution"}</span>
                 <span>{market.endsAt.toLocaleString()}</span>
               </div>
+              {isLive && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{"Pool Balance"}</span>
+                  <span className="font-mono">{parseFloat(market.poolBalance).toFixed(4)} AVAX</span>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>

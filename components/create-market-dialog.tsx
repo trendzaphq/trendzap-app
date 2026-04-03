@@ -14,30 +14,128 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Link2, Sparkles, TrendingUp, DollarSign } from "lucide-react"
+import { Plus, Link2, Sparkles, TrendingUp, DollarSign, Loader2 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
+import { useWallets } from "@privy-io/react-auth"
+import { parseEther } from "viem"
+import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
+
+// Match ViralityMarketV2.sol enum order
+const PLATFORM_MAP: Record<string, number> = { twitter: 0, youtube: 1, tiktok: 2, instagram: 3 }
+const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
 
 export function CreateMarketDialog() {
+  const { wallets } = useWallets()
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
   const [step, setStep] = useState<"url" | "details" | "bet">("url")
 
+  // Form state for market details
+  const [metric, setMetric] = useState("views")
+  const [threshold, setThreshold] = useState("")
+  const [deadline, setDeadline] = useState("24h")
+  const [betAmount, setBetAmount] = useState("0.1")
+  const [selectedPosition, setSelectedPosition] = useState<"over" | "under">("over")
+  const [creating, setCreating] = useState(false)
+  const [txHash, setTxHash] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
   const analyzeUrl = async () => {
     setIsAnalyzing(true)
-    // Simulate URL analysis
+    // Detect platform from URL
+    let platform = "tiktok"
+    if (url.includes("twitter.com") || url.includes("x.com")) platform = "twitter"
+    else if (url.includes("youtube.com") || url.includes("youtu.be")) platform = "youtube"
+    else if (url.includes("instagram.com")) platform = "instagram"
+
     setTimeout(() => {
       setPreviewData({
-        platform: "tiktok",
+        platform,
         thumbnail: "/viral-dance-tiktok.jpg",
         currentViews: 45230,
         currentLikes: 12340,
-        suggestedTitle: "Will this dance trend go viral?",
+        suggestedTitle: "Will this content go viral?",
       })
       setIsAnalyzing(false)
       setStep("details")
-    }, 2000)
+    }, 1500)
+  }
+
+  const getEndTimeUnix = (): bigint => {
+    const now = Math.floor(Date.now() / 1000)
+    const durations: Record<string, number> = { "1h": 3600, "6h": 21600, "24h": 86400, "3d": 259200, "7d": 604800 }
+    return BigInt(now + (durations[deadline] || 86400))
+  }
+
+  const createMarket = async () => {
+    const wallet = wallets[0]
+    if (!wallet) { setError("Connect wallet first"); return }
+    if (!threshold) { setError("Set a threshold"); return }
+
+    setCreating(true)
+    setError(null)
+    setTxHash(null)
+
+    try {
+      const ethereumProvider = await wallet.getEthereumProvider()
+      const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
+      const provider = new BrowserProvider(ethereumProvider)
+      const signer = await provider.getSigner()
+
+      const now = Math.floor(Date.now() / 1000)
+      const durations: Record<string, number> = { "1h": 3600, "6h": 21600, "24h": 86400, "3d": 259200, "7d": 604800 }
+      const duration = durations[deadline] || 86400
+      const startTime = now + 60 // starts 1 minute from now
+      const endTime = startTime + duration
+      const resolutionTime = endTime + 300 // 5 min resolution buffer
+
+      const iface = new EthersInterface([
+        "function createMarket(tuple(string postUrl, uint8 platform, uint8 metricType, uint256 threshold, uint256 startTime, uint256 endTime, uint256 resolutionTime) params, uint256 initialBet, bool betOnOver) payable returns (uint256)",
+      ])
+
+      const params = {
+        postUrl: url,
+        platform: PLATFORM_MAP[previewData?.platform || "tiktok"] ?? 2,
+        metricType: METRIC_MAP[metric] ?? 1,
+        threshold: parseEther(threshold).toString(),
+        startTime,
+        endTime,
+        resolutionTime,
+      }
+
+      const betWei = parseEther(betAmount || "0.01")
+
+      const data = iface.encodeFunctionData("createMarket", [
+        [params.postUrl, params.platform, params.metricType, params.threshold, params.startTime, params.endTime, params.resolutionTime],
+        betWei.toString(),
+        selectedPosition === "over",
+      ])
+
+      const tx = await signer.sendTransaction({
+        to: CONTRACTS.market,
+        data,
+        value: betWei.toString(),
+      })
+
+      setTxHash(tx.hash)
+      await tx.wait()
+
+      // Reset and close
+      setTimeout(() => {
+        setOpen(false)
+        setStep("url")
+        setUrl("")
+        setPreviewData(null)
+        setTxHash(null)
+        setThreshold("")
+      }, 2000)
+    } catch (err) {
+      setError((err as Error).message?.slice(0, 150) || "Transaction failed")
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
@@ -156,28 +254,36 @@ export function CreateMarketDialog() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="metric">{"Metric"}</Label>
-                    <Select defaultValue="views">
+                    <Select value={metric} onValueChange={setMetric}>
                       <SelectTrigger id="metric">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="views">{"Views"}</SelectItem>
                         <SelectItem value="likes">{"Likes"}</SelectItem>
-                        <SelectItem value="comments">{"Comments"}</SelectItem>
-                        <SelectItem value="shares">{"Shares"}</SelectItem>
+                        <SelectItem value="retweets">{"Retweets / Shares"}</SelectItem>
+                        <SelectItem value="replies">{"Comments / Replies"}</SelectItem>
+                        <SelectItem value="followers">{"Followers"}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="threshold">{"Threshold"}</Label>
-                    <Input id="threshold" type="number" placeholder="1000000" className="font-mono" />
+                    <Input
+                      id="threshold"
+                      type="number"
+                      placeholder="1000000"
+                      className="font-mono"
+                      value={threshold}
+                      onChange={(e) => setThreshold(e.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="deadline">{"Resolution Time"}</Label>
-                  <Select defaultValue="24h">
+                  <Select value={deadline} onValueChange={setDeadline}>
                     <SelectTrigger id="deadline">
                       <SelectValue />
                     </SelectTrigger>
@@ -217,15 +323,22 @@ export function CreateMarketDialog() {
 
               {/* Bet Amount */}
               <div className="space-y-2">
-                <Label htmlFor="amount">{"Bet Amount (USDC)"}</Label>
+                <Label htmlFor="amount">{"Initial Bet Amount (AVAX)"}</Label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="amount" type="number" placeholder="100" className="pl-9 text-lg font-mono" />
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="0.1"
+                    value={betAmount}
+                    onChange={(e) => setBetAmount(e.target.value)}
+                    className="pl-9 text-lg font-mono"
+                  />
                 </div>
                 <div className="flex gap-2">
-                  {[10, 50, 100, 500].map((amount) => (
-                    <Button key={amount} variant="outline" size="sm" className="flex-1 bg-transparent">
-                      ${amount}
+                  {["0.01", "0.05", "0.1", "0.5"].map((amount) => (
+                    <Button key={amount} variant="outline" size="sm" className="flex-1 bg-transparent" onClick={() => setBetAmount(amount)}>
+                      {amount} AVAX
                     </Button>
                   ))}
                 </div>
@@ -235,18 +348,31 @@ export function CreateMarketDialog() {
               <div className="space-y-2">
                 <Label>{"Your Position"}</Label>
                 <div className="grid grid-cols-2 gap-4">
-                  <button className="group relative p-4 rounded-lg border-2 border-primary bg-primary/5 hover:bg-primary/10 transition-all">
+                  <button
+                    onClick={() => setSelectedPosition("over")}
+                    className={`group relative p-4 rounded-lg border-2 transition-all ${
+                      selectedPosition === "over"
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-primary/50 hover:bg-primary/5"
+                    }`}
+                  >
                     <div className="text-center space-y-2">
-                      <TrendingUp className="h-8 w-8 mx-auto text-primary" />
+                      <TrendingUp className={`h-8 w-8 mx-auto ${selectedPosition === "over" ? "text-primary" : "text-muted-foreground"}`} />
                       <div className="font-bold text-lg">{"Over"}</div>
                       <div className="text-xs text-muted-foreground">{"Will exceed threshold"}</div>
                     </div>
-                    <div className="absolute inset-0 border-2 border-primary rounded-lg" />
                   </button>
 
-                  <button className="group relative p-4 rounded-lg border-2 border-border hover:border-destructive hover:bg-destructive/5 transition-all">
+                  <button
+                    onClick={() => setSelectedPosition("under")}
+                    className={`group relative p-4 rounded-lg border-2 transition-all ${
+                      selectedPosition === "under"
+                        ? "border-destructive bg-destructive/10"
+                        : "border-border hover:border-destructive/50 hover:bg-destructive/5"
+                    }`}
+                  >
                     <div className="text-center space-y-2">
-                      <TrendingUp className="h-8 w-8 mx-auto text-muted-foreground rotate-180 group-hover:text-destructive transition-colors" />
+                      <TrendingUp className={`h-8 w-8 mx-auto rotate-180 ${selectedPosition === "under" ? "text-destructive" : "text-muted-foreground"}`} />
                       <div className="font-bold text-lg">{"Under"}</div>
                       <div className="text-xs text-muted-foreground">{"Will not exceed threshold"}</div>
                     </div>
@@ -258,21 +384,43 @@ export function CreateMarketDialog() {
               <div className="p-4 bg-muted/50 rounded-lg space-y-2 border border-border">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Your bet"}</span>
-                  <span className="font-mono font-semibold">{"$100 USDC"}</span>
+                  <span className="font-mono font-semibold">{betAmount || "0"} AVAX</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Position"}</span>
-                  <span className="font-semibold text-primary">{"Over"}</span>
+                  <span className={`font-semibold ${selectedPosition === "over" ? "text-primary" : "text-destructive"}`}>
+                    {selectedPosition === "over" ? "Over" : "Under"}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{"Potential return"}</span>
-                  <span className="font-mono font-semibold text-primary">{"~$180 USDC"}</span>
+                  <span className="text-muted-foreground">{"Threshold"}</span>
+                  <span className="font-mono font-semibold">{threshold ? Number(threshold).toLocaleString() : "—"} {metric}</span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-border">
                   <span className="text-muted-foreground">{"Platform fee (3%)"}</span>
-                  <span className="font-mono text-xs">{"$3.00"}</span>
+                  <span className="font-mono text-xs">{(Number(betAmount || 0) * 0.03).toFixed(4)} AVAX</span>
                 </div>
               </div>
+
+              {error && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <span className="text-destructive text-sm">{error}</span>
+                </div>
+              )}
+
+              {txHash && (
+                <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                  <span className="text-primary text-sm font-semibold">Market created!</span>
+                  <a
+                    href={`${EXPLORER_URL}/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground underline block mt-1"
+                  >
+                    View on Explorer
+                  </a>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep("details")} className="flex-1">
@@ -281,15 +429,15 @@ export function CreateMarketDialog() {
                 <Button
                   className="flex-1 gap-2 bg-primary hover:bg-primary/90"
                   size="lg"
-                  onClick={() => {
-                    setOpen(false)
-                    setStep("url")
-                    setUrl("")
-                    setPreviewData(null)
-                  }}
+                  disabled={creating || !threshold}
+                  onClick={createMarket}
                 >
-                  <Sparkles className="h-5 w-5" />
-                  {"Create & Zap"}
+                  {creating ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" />
+                  )}
+                  {creating ? "Creating..." : "Create & Zap"}
                 </Button>
               </div>
             </div>

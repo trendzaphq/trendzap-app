@@ -4,8 +4,9 @@ import { useState } from "react"
 import { MarketCard } from "@/components/market-card"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
+import { useMarketList } from "@/hooks/use-market"
 
-// Extended mock data
+// Mock markets shown when contracts aren't deployed yet
 const MOCK_MARKETS = [
   {
     id: "1",
@@ -102,18 +103,37 @@ export function MarketFeed({
   title = "Live Markets",
   description = "Trending predictions ending soon",
 }: MarketFeedProps) {
-  const [markets, setMarkets] = useState(MOCK_MARKETS)
-  const [isLoading, setIsLoading] = useState(false)
-  const [page, setPage] = useState(1)
+  const { markets: onChainMarkets, loading: contractsLoading } = useMarketList()
+  const [mockPage, setMockPage] = useState(1)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+
+  // If contracts are deployed and have markets, show real data
+  const hasRealMarkets = onChainMarkets.length > 0
+
+  // Convert on-chain markets to the card format
+  const liveMarkets = hasRealMarkets
+    ? onChainMarkets.map((m) => ({
+        id: String(m.id),
+        platform: m.platform as "tiktok" | "youtube" | "x" | "instagram",
+        thumbnail: "",
+        title: `${m.postUrl.slice(0, 50)}... — Will it hit ${Number(m.threshold).toLocaleString()} ${m.metricType}?`,
+        metric: m.metricType.charAt(0).toUpperCase() + m.metricType.slice(1),
+        threshold: Number(m.threshold),
+        currentValue: 0,
+        overPool: Math.round(parseFloat(m.totalVolume) * (m.priceOver / 100) * 1000),
+        underPool: Math.round(parseFloat(m.totalVolume) * (m.priceUnder / 100) * 1000),
+        totalBets: 0,
+        endsIn: formatTimeRemaining(m.endTime),
+        creator: m.creator.slice(0, 8) + "...",
+      }))
+    : MOCK_MARKETS.slice(0, mockPage * 6)
 
   const loadMore = () => {
-    setIsLoading(true)
-    // Simulate loading
+    setIsLoadingMore(true)
     setTimeout(() => {
-      setMarkets((prev) => [...prev, ...MOCK_MARKETS])
-      setPage((p) => p + 1)
-      setIsLoading(false)
-    }, 1000)
+      setMockPage((p) => p + 1)
+      setIsLoadingMore(false)
+    }, 500)
   }
 
   return (
@@ -129,24 +149,43 @@ export function MarketFeed({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {markets.map((market, index) => (
-          <MarketCard key={`${market.id}-${index}`} {...market} />
-        ))}
+        {contractsLoading ? (
+          <div className="col-span-full flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          liveMarkets.map((market, index) => (
+            <MarketCard key={`${market.id}-${index}`} {...market} />
+          ))
+        )}
       </div>
 
-      {/* Load more */}
-      <div className="flex justify-center">
-        <Button variant="outline" size="lg" className="gap-2 bg-transparent" onClick={loadMore} disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {"Loading..."}
-            </>
-          ) : (
-            <>{"Load More Markets"}</>
-          )}
-        </Button>
-      </div>
+      {!hasRealMarkets && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="lg" className="gap-2 bg-transparent" onClick={loadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {"Loading..."}
+              </>
+            ) : (
+              <>{"Load More Markets"}</>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   )
+}
+
+function formatTimeRemaining(endTimeUnix: number): string {
+  const now = Math.floor(Date.now() / 1000)
+  const diff = endTimeUnix - now
+  if (diff <= 0) return "Ended"
+  const days = Math.floor(diff / 86400)
+  const hours = Math.floor((diff % 86400) / 3600)
+  const mins = Math.floor((diff % 3600) / 60)
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${mins}m`
+  return `${mins}m`
 }
