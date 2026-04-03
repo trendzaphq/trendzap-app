@@ -1,0 +1,441 @@
+"use client"
+
+import { useCallback, useEffect, useState } from "react"
+import { usePrivy, useWallets } from "@privy-io/react-auth"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { useMarketList, type MarketData } from "@/hooks/use-market"
+import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
+
+// ── Service health types ─────────────────────────────────────
+interface ServiceHealth {
+  name: string
+  url: string
+  status: "ok" | "error" | "loading"
+  detail?: string
+}
+
+const SERVICES: Omit<ServiceHealth, "status" | "detail">[] = [
+  { name: "Oracle", url: process.env.NEXT_PUBLIC_ORACLE_URL || "" },
+  { name: "Risk Engine", url: process.env.NEXT_PUBLIC_RISK_URL || "" },
+  { name: "Intelligence", url: process.env.NEXT_PUBLIC_INTELLIGENCE_URL || "" },
+]
+
+// ── Admin resolve dialog ─────────────────────────────────────
+function ResolveDialog({
+  market,
+  onClose,
+  onResolved,
+}: {
+  market: MarketData | null
+  onClose: () => void
+  onResolved: () => void
+}) {
+  const { wallets } = useWallets()
+  const [metricValue, setMetricValue] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const resolve = useCallback(async () => {
+    if (!market || !metricValue) return
+    const wallet = wallets[0]
+    if (!wallet) return
+
+    setLoading(true)
+    setError(null)
+    try {
+      const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
+      const provider = new BrowserProvider(await wallet.getEthereumProvider())
+      const signer = await provider.getSigner()
+      const iface = new EthersInterface([
+        "function resolveMarket(uint256 marketId, uint256 metricValue)",
+      ])
+      const tx = await signer.sendTransaction({
+        to: CONTRACTS.market,
+        data: iface.encodeFunctionData("resolveMarket", [market.id, BigInt(metricValue)]),
+      })
+      await tx.wait()
+      onResolved()
+      onClose()
+    } catch (e) {
+      setError((e as Error).message.slice(0, 200))
+    } finally {
+      setLoading(false)
+    }
+  }, [market, metricValue, wallets, onClose, onResolved])
+
+  return (
+    <Dialog open={!!market} onOpenChange={() => onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Resolve Market #{market?.id}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground truncate">{market?.postUrl}</p>
+        <p className="text-sm">
+          Threshold: <strong>{market?.threshold?.toString()}</strong> {market?.metricType}
+        </p>
+        <Input
+          type="number"
+          placeholder="Final metric value (e.g. 150000)"
+          value={metricValue}
+          onChange={(e) => setMetricValue(e.target.value)}
+        />
+        {error && <p className="text-destructive text-xs">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={resolve} disabled={loading || !metricValue}>
+            {loading ? "Resolving..." : "Resolve On-chain"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Cancel dialog ────────────────────────────────────────────
+function CancelDialog({
+  market,
+  onClose,
+  onCancelled,
+}: {
+  market: MarketData | null
+  onClose: () => void
+  onCancelled: () => void
+}) {
+  const { wallets } = useWallets()
+  const [reason, setReason] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const cancel = useCallback(async () => {
+    if (!market) return
+    const wallet = wallets[0]
+    if (!wallet) return
+
+    setLoading(true)
+    setError(null)
+    try {
+      const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
+      const provider = new BrowserProvider(await wallet.getEthereumProvider())
+      const signer = await provider.getSigner()
+      const iface = new EthersInterface([
+        "function cancelMarket(uint256 marketId, string reason)",
+      ])
+      const tx = await signer.sendTransaction({
+        to: CONTRACTS.market,
+        data: iface.encodeFunctionData("cancelMarket", [market.id, reason || "Admin action"]),
+      })
+      await tx.wait()
+      onCancelled()
+      onClose()
+    } catch (e) {
+      setError((e as Error).message.slice(0, 200))
+    } finally {
+      setLoading(false)
+    }
+  }, [market, reason, wallets, onClose, onCancelled])
+
+  return (
+    <Dialog open={!!market} onOpenChange={() => onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cancel Market #{market?.id}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">This will refund all bettors.</p>
+        <Input
+          placeholder="Reason (optional)"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        {error && <p className="text-destructive text-xs">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Back</Button>
+          <Button variant="destructive" onClick={cancel} disabled={loading}>
+            {loading ? "Cancelling..." : "Confirm Cancel"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Status badge ─────────────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+  const color: Record<string, string> = {
+    ACTIVE: "bg-green-500/20 text-green-400 border-green-500/30",
+    RESOLVED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    PENDING: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    CLOSED: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    CANCELLED: "bg-red-500/20 text-red-400 border-red-500/30",
+    DISPUTED: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  }
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${color[status] ?? "bg-muted text-muted-foreground"}`}>
+      {status}
+    </span>
+  )
+}
+
+// ── Main admin page ──────────────────────────────────────────
+
+export default function AdminPage() {
+  const { authenticated } = usePrivy()
+  const { wallets } = useWallets()
+  const { markets, loading: marketsLoading } = useMarketList()
+
+  const [services, setServices] = useState<ServiceHealth[]>(
+    SERVICES.map((s) => ({ ...s, status: "loading" as const }))
+  )
+  const [resolveTarget, setResolveTarget] = useState<MarketData | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<MarketData | null>(null)
+  const [filter, setFilter] = useState<string>("ALL")
+
+  // ── Health check polling ──────────────────────────
+  const checkHealth = useCallback(async () => {
+    const paths: Record<string, string> = {
+      Oracle: "/api/v1/health",
+      "Risk Engine": "/health",
+      Intelligence: "/health",
+    }
+    const updated = await Promise.all(
+      SERVICES.map(async (svc) => {
+        if (!svc.url) return { ...svc, status: "error" as const, detail: "URL not configured" }
+        try {
+          const res = await fetch(`${svc.url}${paths[svc.name] ?? "/health"}`, {
+            signal: AbortSignal.timeout(5000),
+          })
+          const data = await res.json().catch(() => ({}))
+          return {
+            ...svc,
+            status: res.ok ? ("ok" as const) : ("error" as const),
+            detail: data.status ?? (res.ok ? "OK" : `HTTP ${res.status}`),
+          }
+        } catch {
+          return { ...svc, status: "error" as const, detail: "Unreachable" }
+        }
+      })
+    )
+    setServices(updated)
+  }, [])
+
+  useEffect(() => {
+    checkHealth()
+    const t = setInterval(checkHealth, 30_000)
+    return () => clearInterval(t)
+  }, [checkHealth])
+
+  // ── Derived stats ─────────────────────────────────
+  const byStatus = markets.reduce<Record<string, number>>((acc, m) => {
+    acc[m.status] = (acc[m.status] ?? 0) + 1
+    return acc
+  }, {})
+
+  const totalVolumeEth = markets
+    .reduce((sum, m) => sum + parseFloat(m.totalVolume || "0"), 0)
+    .toFixed(4)
+
+  const filtered =
+    filter === "ALL" ? markets : markets.filter((m) => m.status === filter)
+
+  const connectedAddress = wallets[0]?.address
+
+  return (
+    <div className="min-h-screen bg-background text-foreground p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            {connectedAddress
+              ? `Connected: ${connectedAddress.slice(0, 6)}…${connectedAddress.slice(-4)}`
+              : "Connect wallet to take actions"}
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={checkHealth}>
+          Refresh health
+        </Button>
+      </div>
+
+      {/* Service health ─────────────────────────────── */}
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {services.map((svc) => (
+          <Card key={svc.name}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">{svc.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center gap-2">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  svc.status === "ok"
+                    ? "bg-green-500"
+                    : svc.status === "error"
+                    ? "bg-red-500"
+                    : "bg-yellow-500 animate-pulse"
+                }`}
+              />
+              <span className="text-sm capitalize">{svc.detail ?? svc.status}</span>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
+      {/* Stats cards ─────────────────────────────────── */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Markets</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold">{markets.length}</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Active</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-green-500">{byStatus["ACTIVE"] ?? 0}</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Resolved</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-blue-500">{byStatus["RESOLVED"] ?? 0}</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Volume</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold">{totalVolumeEth} <span className="text-sm font-normal">AVAX</span></p></CardContent>
+        </Card>
+      </section>
+
+      {/* Status filter tabs ──────────────────────────── */}
+      <div className="flex flex-wrap gap-2">
+        {["ALL", "PENDING", "ACTIVE", "CLOSED", "RESOLVED", "CANCELLED", "DISPUTED"].map((s) => (
+          <Button
+            key={s}
+            size="sm"
+            variant={filter === s ? "default" : "outline"}
+            onClick={() => setFilter(s)}
+          >
+            {s} {s !== "ALL" ? (byStatus[s] ?? 0) : markets.length}
+          </Button>
+        ))}
+      </div>
+
+      {/* Markets table ──────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Markets</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {marketsLoading ? (
+            <p className="text-muted-foreground text-sm py-8 text-center">Loading markets…</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-muted-foreground text-sm py-8 text-center">No markets found.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead>Post / Platform</TableHead>
+                  <TableHead>Metric</TableHead>
+                  <TableHead>Threshold</TableHead>
+                  <TableHead>Volume</TableHead>
+                  <TableHead>End Time</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((m) => {
+                  const canResolve = m.status === "ACTIVE" || m.status === "CLOSED"
+                  const canCancel =
+                    m.status === "PENDING" ||
+                    m.status === "ACTIVE" ||
+                    m.status === "CLOSED"
+                  const endDate = new Date(m.endTime * 1000)
+
+                  return (
+                    <TableRow key={m.id}>
+                      <TableCell className="font-mono text-xs">{m.id}</TableCell>
+                      <TableCell className="max-w-[180px]">
+                        <a
+                          href={m.postUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-blue-400 underline truncate block"
+                        >
+                          {m.platform}: {m.postUrl.replace(/https?:\/\/[^/]+/, "")}
+                        </a>
+                      </TableCell>
+                      <TableCell className="capitalize text-xs">{m.metricType}</TableCell>
+                      <TableCell className="text-xs font-mono">{m.threshold.toString()}</TableCell>
+                      <TableCell className="text-xs">{m.totalVolume} AVAX</TableCell>
+                      <TableCell className="text-xs">
+                        {endDate.toLocaleDateString()} {endDate.toLocaleTimeString()}
+                      </TableCell>
+                      <TableCell><StatusBadge status={m.status} /></TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {canResolve && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7 px-2"
+                              onClick={() => setResolveTarget(m)}
+                              disabled={!authenticated}
+                            >
+                              Resolve
+                            </Button>
+                          )}
+                          {canCancel && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs h-7 px-2 text-destructive hover:text-destructive"
+                              onClick={() => setCancelTarget(m)}
+                              disabled={!authenticated}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                          <a
+                            href={`${EXPLORER_URL}/address/${CONTRACTS.market}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground px-1"
+                          >
+                            ↗
+                          </a>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialogs ─────────────────────────────────────── */}
+      <ResolveDialog
+        market={resolveTarget}
+        onClose={() => setResolveTarget(null)}
+        onResolved={() => window.location.reload()}
+      />
+      <CancelDialog
+        market={cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onCancelled={() => window.location.reload()}
+      />
+    </div>
+  )
+}

@@ -20,6 +20,7 @@ import {
   LogOut,
   BarChart3,
   Bell,
+  ShieldCheck,
 } from "lucide-react"
 import { useState } from "react"
 import {
@@ -137,6 +138,12 @@ export function Navigation() {
                     <Link href="/settings" className="cursor-pointer gap-2 flex">
                       <Settings className="h-4 w-4" />
                       Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="cursor-pointer gap-2 flex text-muted-foreground">
+                      <ShieldCheck className="h-4 w-4" />
+                      Admin
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem

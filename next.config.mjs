@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Use standalone output for Docker/Railway. Vercel ignores this automatically.
   output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
