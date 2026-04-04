@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { v2 as cloudinary } from "cloudinary"
 
-cloudinary.config({ cloud_name: "dpy5zhquf", api_key: "244658156533717", api_secret: "E9DOogc2VeMh2tLjxGnJNOTxdrQ" })
+// SDK auto-reads CLOUDINARY_URL env var — no hardcoded credentials
+cloudinary.config({ secure: true })
 
 // POST /api/upload — upload image to Cloudinary, return { url }
 export async function POST(req: NextRequest) {

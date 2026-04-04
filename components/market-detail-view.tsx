@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -49,6 +49,14 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const [betAmount, setBetAmount] = useState("")
   const [selectedPosition, setSelectedPosition] = useState<"over" | "under" | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [meta, setMeta] = useState<{ title: string | null; thumbnail_url: string | null } | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/markets/${numericId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setMeta(data) })
+      .catch(() => {})
+  }, [numericId])
 
   // Fallback mock data for when contracts aren't deployed yet
   const mockMarket = {
@@ -72,8 +80,8 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const market = isLive
     ? {
         platform: onChainMarket.platform,
-        thumbnail: "/viral-dance-tiktok.jpg",
-        title: `Will ${onChainMarket.postUrl} hit ${Number(onChainMarket.threshold / BigInt(1e12)) / 1e6}M ${onChainMarket.metricType}?`,
+        thumbnail: meta?.thumbnail_url || "",
+        title: meta?.title || `Will ${onChainMarket.postUrl} hit ${Number(onChainMarket.threshold).toLocaleString()} ${onChainMarket.metricType}?`,
         metric: onChainMarket.metricType.charAt(0).toUpperCase() + onChainMarket.metricType.slice(1),
         threshold: Number(onChainMarket.threshold),
         currentValue: 0, // live metric from oracle — not on-chain

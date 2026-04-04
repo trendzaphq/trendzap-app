@@ -13,7 +13,7 @@ import {
 import { Wallet, Copy, ExternalLink, LogOut, ChevronDown, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { createPublicClient, http, formatEther } from "viem"
-import { avalancheFuji } from "viem/chains"
+import { avalanche } from "viem/chains"
 import { EXPLORER_URL, RPC_URL } from "@/lib/contracts"
 
 interface WalletButtonProps {
@@ -33,7 +33,7 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
   useEffect(() => {
     if (!address) return
     const client = createPublicClient({
-      chain: avalancheFuji,
+      chain: avalanche,
       transport: http(RPC_URL),
     })
     client

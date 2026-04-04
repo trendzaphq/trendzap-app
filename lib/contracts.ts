@@ -251,7 +251,7 @@ export const FACTORY_ABI = [
 
 // Enums mirroring the contract (ViralityMarket.sol order)
 // Platform enum: TWITTER=0, YOUTUBE=1, TIKTOK=2, INSTAGRAM=3
-export const PLATFORMS = ["twitter", "youtube", "tiktok", "instagram"] as const
+export const PLATFORMS = ["x", "youtube", "tiktok", "instagram"] as const
 // MetricType enum: LIKES=0, VIEWS=1, RETWEETS=2, COMMENTS=3, SHARES=4
 export const METRIC_TYPES = ["likes", "views", "retweets", "comments", "shares"] as const
 export const MARKET_STATUS = ["PENDING", "ACTIVE", "CLOSED", "RESOLVED", "CANCELLED", "DISPUTED"] as const
