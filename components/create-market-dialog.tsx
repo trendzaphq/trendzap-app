@@ -35,6 +35,7 @@ export function CreateMarketDialog() {
   // Form state for market details
   const [metric, setMetric] = useState("views")
   const [threshold, setThreshold] = useState("")
+  const [customTitle, setCustomTitle] = useState("")
   const [deadline, setDeadline] = useState("24h")
   const [betAmount, setBetAmount] = useState("0.1")
   const [selectedPosition, setSelectedPosition] = useState<"over" | "under">("over")
@@ -147,7 +148,7 @@ export function CreateMarketDialog() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             market_id: marketId,
-            title: previewData?.suggestedTitle || null,
+            title: customTitle || previewData?.suggestedTitle || null,
             description: null,
             thumbnail_url: previewData?.thumbnail || null,
             creator_address: await signer.getAddress(),
@@ -165,6 +166,7 @@ export function CreateMarketDialog() {
         setPreviewData(null)
         setTxHash(null)
         setThreshold("")
+        setCustomTitle("")
       }, 2000)
     } catch (err) {
       setError((err as Error).message?.slice(0, 150) || "Transaction failed")
@@ -283,7 +285,7 @@ export function CreateMarketDialog() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">{"Market Title (Optional)"}</Label>
-                  <Textarea id="title" placeholder={previewData.suggestedTitle} rows={2} className="resize-none" />
+                  <Textarea id="title" placeholder={previewData.suggestedTitle} rows={2} className="resize-none" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -297,8 +299,6 @@ export function CreateMarketDialog() {
                         <SelectItem value="views">{"Views"}</SelectItem>
                         <SelectItem value="likes">{"Likes"}</SelectItem>
                         <SelectItem value="retweets">{"Retweets / Shares"}</SelectItem>
-                        <SelectItem value="replies">{"Comments / Replies"}</SelectItem>
-                        <SelectItem value="followers">{"Followers"}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

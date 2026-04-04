@@ -12,7 +12,6 @@ import {
   TrendingDown,
   Clock,
   Users,
-  DollarSign,
   Share2,
   ExternalLink,
   Activity,
@@ -163,7 +162,16 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
           <img src={market.thumbnail || "/placeholder.svg"} alt={market.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
 
-          <Badge className="absolute top-4 left-4 bg-gradient-to-r from-[#FF0050] to-[#00F2EA] text-white border-0 font-semibold">
+          <Badge
+            className={`absolute top-4 left-4 bg-gradient-to-r ${
+              {
+                tiktok: "from-[#FF0050] to-[#00F2EA]",
+                youtube: "from-[#FF0000] to-[#FF8800]",
+                x: "from-[#1DA1F2] to-[#14171A]",
+                instagram: "from-[#E1306C] to-[#FCAF45]",
+              }[market.platform as string] ?? "from-primary to-secondary"
+            } text-white border-0 font-semibold`}
+          >
             {market.platform.toUpperCase()}
           </Badge>
 
@@ -386,18 +394,17 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <div className="space-y-3">
               <Label htmlFor="bet-amount">{isLive ? "Bet Amount (AVAX)" : "Bet Amount (USDC)"}</Label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="bet-amount"
                   type="number"
-                  placeholder="100"
+                  placeholder="0.1"
                   value={betAmount}
                   onChange={(e) => setBetAmount(e.target.value)}
-                  className="pl-10 text-lg font-mono h-12"
+                  className="text-lg font-mono h-12"
                 />
               </div>
               <div className="flex gap-2">
-                {[10, 50, 100, 500].map((amount) => (
+                {[0.1, 0.5, 1, 2].map((amount) => (
                   <Button
                     key={amount}
                     variant="outline"
@@ -405,7 +412,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                     className="flex-1 bg-transparent"
                     onClick={() => setBetAmount(amount.toString())}
                   >
-                    ${amount}
+                    {amount} AVAX
                   </Button>
                 ))}
               </div>
@@ -434,7 +441,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-border">
                   <span className="text-muted-foreground">{"Platform fee (3%)"}</span>
-                  <span className="font-mono text-xs">${(Number.parseFloat(betAmount) * 0.03).toFixed(2)}</span>
+                  <span className="font-mono text-xs">{(Number.parseFloat(betAmount) * 0.03).toFixed(4)} AVAX</span>
                 </div>
               </div>
             )}

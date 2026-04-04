@@ -194,6 +194,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ── Main admin page ──────────────────────────────────────────
+const ADMIN_ADDRESS = "0x05394029ea22767d2283bcd0be03b13353781212"
 
 export default function AdminPage() {
   const { authenticated } = usePrivy()
@@ -241,6 +242,25 @@ export default function AdminPage() {
     return () => clearInterval(t)
   }, [checkHealth])
 
+  const connectedAddress = wallets[0]?.address
+  const isAdmin = connectedAddress?.toLowerCase() === ADMIN_ADDRESS
+
+  // ── Access guard ──────────────────────────────────
+  if (!authenticated || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="p-8 text-center space-y-3 max-w-sm">
+          <p className="text-xl font-bold text-destructive">Access Denied</p>
+          <p className="text-sm text-muted-foreground">
+            {!authenticated
+              ? "Connect the admin wallet to access this page."
+              : "Connected wallet is not authorized."}
+          </p>
+        </Card>
+      </div>
+    )
+  }
+
   // ── Derived stats ─────────────────────────────────
   const byStatus = markets.reduce<Record<string, number>>((acc, m) => {
     acc[m.status] = (acc[m.status] ?? 0) + 1
@@ -253,8 +273,6 @@ export default function AdminPage() {
 
   const filtered =
     filter === "ALL" ? markets : markets.filter((m) => m.status === filter)
-
-  const connectedAddress = wallets[0]?.address
 
   return (
     <div className="min-h-screen bg-background text-foreground p-6 space-y-6">
@@ -390,7 +408,6 @@ export default function AdminPage() {
                               variant="outline"
                               className="text-xs h-7 px-2"
                               onClick={() => setResolveTarget(m)}
-                              disabled={!authenticated}
                             >
                               Resolve
                             </Button>
@@ -401,7 +418,6 @@ export default function AdminPage() {
                               variant="ghost"
                               className="text-xs h-7 px-2 text-destructive hover:text-destructive"
                               onClick={() => setCancelTarget(m)}
-                              disabled={!authenticated}
                             >
                               Cancel
                             </Button>
