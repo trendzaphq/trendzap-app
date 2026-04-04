@@ -24,9 +24,20 @@ import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
 const PLATFORM_MAP: Record<string, number> = { twitter: 0, x: 0, youtube: 1, tiktok: 2, instagram: 3 }
 const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
 
-export function CreateMarketDialog({ triggerClassName }: { triggerClassName?: string } = {}) {
+export function CreateMarketDialog({
+  triggerClassName,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: {
+  triggerClassName?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+} = {}) {
   const { wallets } = useWallets()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen! : internalOpen
+  const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen
   const [url, setUrl] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [previewData, setPreviewData] = useState<any>(null)
@@ -177,12 +188,14 @@ export function CreateMarketDialog({ triggerClassName }: { triggerClassName?: st
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className={`gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold${triggerClassName ? ` ${triggerClassName}` : ""}`}>
-          <Plus className="h-4 w-4" />
-          {"Create Market"}
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button className={`gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold${triggerClassName ? ` ${triggerClassName}` : ""}`}>
+            <Plus className="h-4 w-4" />
+            {"Create Market"}
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">{"Create a Market"}</DialogTitle>

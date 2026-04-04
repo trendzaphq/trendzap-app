@@ -21,6 +21,7 @@ import {
   BarChart3,
   Bell,
   ShieldCheck,
+  Plus,
 } from "lucide-react"
 import { useState } from "react"
 import {
@@ -31,11 +32,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { CreateMarketDialog } from "@/components/create-market-dialog"
 
 export function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [createMarketOpen, setCreateMarketOpen] = useState(false)
   const { ready, authenticated, user, logout } = usePrivy()
 
   const navCategories = [
@@ -129,6 +132,14 @@ export function Navigation() {
                       {user?.email?.address || user?.wallet?.address?.slice(0, 10) + "..."}
                     </span>
                   </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setCreateMarketOpen(true)}
+                    className="cursor-pointer gap-2 flex text-primary focus:text-primary font-semibold"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Market
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer gap-2 flex">
@@ -227,6 +238,11 @@ export function Navigation() {
         </div>
       </header>
 
+      {/* Create Market Dialog (controlled from dropdown) */}
+      {authenticated && (
+        <CreateMarketDialog open={createMarketOpen} onOpenChange={setCreateMarketOpen} />
+      )}
+
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 top-16 z-40 bg-background/95 backdrop-blur-xl lg:hidden animate-slide-up">
@@ -250,6 +266,14 @@ export function Navigation() {
               </Button>
               {authenticated && (
                 <>
+                  <Button
+                    size="lg"
+                    className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 font-semibold"
+                    onClick={() => { setMobileMenuOpen(false); setCreateMarketOpen(true) }}
+                  >
+                    <Plus className="h-5 w-5" />
+                    Create Market
+                  </Button>
                   <Button size="lg" variant="ghost" className="w-full justify-start gap-2" asChild>
                     <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
                       <User className="h-5 w-5" />

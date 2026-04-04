@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { PrivyClientProvider } from "@/components/providers/privy-provider"
+import { CreateMarketFab } from "@/components/create-market-fab"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -38,7 +39,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`font-sans antialiased`}>
-        <PrivyClientProvider>{children}</PrivyClientProvider>
+        <PrivyClientProvider>
+          {children}
+          <CreateMarketFab />
+        </PrivyClientProvider>
         <Analytics />
       </body>
     </html>
