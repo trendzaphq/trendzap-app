@@ -45,11 +45,12 @@ export function MarketFeed({
       metric: m.metricType.charAt(0).toUpperCase() + m.metricType.slice(1),
       threshold: Number(m.threshold),
       currentValue: 0,
-      overPool: Math.round(parseFloat(m.totalVolume) * (m.priceOver / 100) * 1000),
-      underPool: Math.round(parseFloat(m.totalVolume) * (m.priceUnder / 100) * 1000),
+      overPool: m.priceOver,
+      underPool: m.priceUnder,
       totalBets: 0,
       endsIn: formatTimeRemaining(m.endTime),
       creator: m.creator.slice(0, 8) + "...",
+      volume: m.totalVolume,
     }
   })
 

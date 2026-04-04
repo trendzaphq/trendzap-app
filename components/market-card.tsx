@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, TrendingDown, Clock, Users, DollarSign } from "lucide-react"
+import { TrendingUp, TrendingDown, Clock, Users, Zap } from "lucide-react"
 
 interface MarketCardProps {
   id: string
@@ -20,6 +20,7 @@ interface MarketCardProps {
   totalBets: number
   endsIn: string
   creator?: string
+  volume?: string
 }
 
 export function MarketCard({
@@ -35,11 +36,13 @@ export function MarketCard({
   totalBets,
   endsIn,
   creator,
+  volume,
 }: MarketCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const totalPool = overPool + underPool
-  const overPercentage = (overPool / totalPool) * 100
-  const underPercentage = (underPool / totalPool) * 100
+  // Guard against division by zero on fresh markets
+  const overPercentage = totalPool > 0 ? (overPool / totalPool) * 100 : 50
+  const underPercentage = totalPool > 0 ? (underPool / totalPool) * 100 : 50
 
   const platformColors = {
     tiktok: "from-[#FF0050] to-[#00F2EA]",
@@ -104,10 +107,11 @@ export function MarketCard({
             <div className="flex justify-between items-center text-xs">
               <span className="text-muted-foreground flex items-center gap-1">
                 <Users className="h-3 w-3" />
-                {totalBets} bets
+                {totalBets > 0 ? `${totalBets} bets` : "New"}
               </span>
               <span className="text-muted-foreground flex items-center gap-1">
-                <DollarSign className="h-3 w-3" />${totalPool.toLocaleString()}
+                <Zap className="h-3 w-3" />
+                {volume ? `${parseFloat(volume).toFixed(3)} AVAX` : "—"}
               </span>
             </div>
 
