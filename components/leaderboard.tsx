@@ -1,106 +1,26 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Trophy, TrendingUp, Target, Zap } from "lucide-react"
+import { Trophy, TrendingUp, Target, Zap, Loader2 } from "lucide-react"
 
 interface LeaderboardProps {
   timeframe: "all-time" | "weekly" | "daily"
 }
 
-const MOCK_LEADERS = [
-  {
-    rank: 1,
-    username: "cryptowhale",
-    avatar: "CW",
-    profit: 45234,
-    winRate: 78.5,
-    totalBets: 432,
-    badges: ["whale", "streak"],
-  },
-  {
-    rank: 2,
-    username: "trendmaster",
-    avatar: "TM",
-    profit: 38901,
-    winRate: 72.3,
-    totalBets: 389,
-    badges: ["creator"],
-  },
-  {
-    rank: 3,
-    username: "viralking",
-    avatar: "VK",
-    profit: 32567,
-    winRate: 81.2,
-    totalBets: 234,
-    badges: ["accurate"],
-  },
-  {
-    rank: 4,
-    username: "betqueen",
-    avatar: "BQ",
-    profit: 28934,
-    winRate: 69.8,
-    totalBets: 567,
-    badges: ["volume"],
-  },
-  {
-    rank: 5,
-    username: "zapgod",
-    avatar: "ZG",
-    profit: 24123,
-    winRate: 75.4,
-    totalBets: 312,
-    badges: [],
-  },
-  {
-    rank: 6,
-    username: "tiktokoracle",
-    avatar: "TO",
-    profit: 21456,
-    winRate: 68.9,
-    totalBets: 445,
-    badges: ["tiktok"],
-  },
-  {
-    rank: 7,
-    username: "memelord",
-    avatar: "ML",
-    profit: 19234,
-    winRate: 71.2,
-    totalBets: 278,
-    badges: [],
-  },
-  {
-    rank: 8,
-    username: "culturevulture",
-    avatar: "CV",
-    profit: 17890,
-    winRate: 73.6,
-    totalBets: 356,
-    badges: [],
-  },
-  {
-    rank: 9,
-    username: "trendhunter",
-    avatar: "TH",
-    profit: 16234,
-    winRate: 70.1,
-    totalBets: 423,
-    badges: [],
-  },
-  {
-    rank: 10,
-    username: "vibesensor",
-    avatar: "VS",
-    profit: 14567,
-    winRate: 67.8,
-    totalBets: 298,
-    badges: [],
-  },
-]
+interface LeaderEntry {
+  rank: number
+  address: string
+  username: string
+  avatar: string
+  profit: number
+  winRate: number
+  totalBets: number
+  wins: number
+  badges: string[]
+}
 
 const getBadgeInfo = (badge: string) => {
   const badges: Record<string, { label: string; color: string; icon: any }> = {
@@ -115,10 +35,24 @@ const getBadgeInfo = (badge: string) => {
 }
 
 export function Leaderboard({ timeframe }: LeaderboardProps) {
+  const [leaders, setLeaders] = useState<LeaderEntry[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    // Trigger a background sync then load leaderboard
+    fetch("/api/indexer/sync", { method: "GET" }).catch(() => {})
+    fetch(`/api/leaderboard?timeframe=${timeframe}`)
+      .then((r) => r.json())
+      .then((data) => { if (data.ok) setLeaders(data.entries) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [timeframe])
+
   const getRankStyle = (rank: number) => {
-    if (rank === 1) return "from-[#FFD700] to-[#FFA500]" // Gold
-    if (rank === 2) return "from-[#C0C0C0] to-[#A8A8A8]" // Silver
-    if (rank === 3) return "from-[#CD7F32] to-[#8B4513]" // Bronze
+    if (rank === 1) return "from-[#FFD700] to-[#FFA500]"
+    if (rank === 2) return "from-[#C0C0C0] to-[#A8A8A8]"
+    if (rank === 3) return "from-[#CD7F32] to-[#8B4513]"
     return ""
   }
 
@@ -129,54 +63,72 @@ export function Leaderboard({ timeframe }: LeaderboardProps) {
     return "text-muted-foreground"
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (leaders.length === 0) {
+    return (
+      <div className="text-center py-20 text-muted-foreground">
+        <Trophy className="h-12 w-12 mx-auto mb-4 opacity-30" />
+        <p className="text-lg font-medium">No data yet</p>
+        <p className="text-sm mt-1">Be the first to make a prediction!</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* Top 3 Podium */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {MOCK_LEADERS.slice(0, 3).map((leader) => (
-          <Card
-            key={leader.rank}
-            className={`p-6 text-center relative overflow-hidden ${
-              leader.rank === 1 ? "md:col-start-2 md:order-first" : ""
-            }`}
-          >
-            {leader.rank <= 3 && (
-              <div className={`absolute inset-0 bg-gradient-to-br ${getRankStyle(leader.rank)} opacity-5`} />
-            )}
+      {leaders.length >= 3 && (
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {leaders.slice(0, 3).map((leader) => (
+            <Card
+              key={leader.rank}
+              className={`p-6 text-center relative overflow-hidden`}
+            >
+              {<div className={`absolute inset-0 bg-gradient-to-br ${getRankStyle(leader.rank)} opacity-5`} />}
 
-            <div className="relative">
-              <div className="relative inline-block mb-4">
-                <Avatar className="h-20 w-20 border-4 border-primary/20">
-                  <AvatarFallback
-                    className={`text-2xl font-bold ${
-                      leader.rank === 1
-                        ? "bg-gradient-to-br from-[#FFD700] to-[#FFA500] text-black"
-                        : leader.rank === 2
-                          ? "bg-gradient-to-br from-[#C0C0C0] to-[#A8A8A8] text-black"
-                          : "bg-gradient-to-br from-[#CD7F32] to-[#8B4513] text-black"
-                    }`}
+              <div className="relative">
+                <div className="relative inline-block mb-4">
+                  <Avatar className="h-20 w-20 border-4 border-primary/20">
+                    <AvatarFallback
+                      className={`text-2xl font-bold ${
+                        leader.rank === 1
+                          ? "bg-gradient-to-br from-[#FFD700] to-[#FFA500] text-black"
+                          : leader.rank === 2
+                            ? "bg-gradient-to-br from-[#C0C0C0] to-[#A8A8A8] text-black"
+                            : "bg-gradient-to-br from-[#CD7F32] to-[#8B4513] text-black"
+                      }`}
+                    >
+                      {leader.avatar}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div
+                    className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br ${getRankStyle(leader.rank)} flex items-center justify-center font-bold text-black text-sm shadow-lg`}
                   >
-                    {leader.avatar}
-                  </AvatarFallback>
-                </Avatar>
-                <div
-                  className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br ${getRankStyle(leader.rank)} flex items-center justify-center font-bold text-black text-sm shadow-lg`}
-                >
-                  {leader.rank}
+                    {leader.rank}
+                  </div>
                 </div>
-              </div>
 
-              <div className="font-bold text-lg mb-1">@{leader.username}</div>
-              <div className="text-2xl font-mono font-bold text-primary mb-2">+${leader.profit.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">{leader.winRate}% win rate</div>
-            </div>
-          </Card>
-        ))}
-      </div>
+                <div className="font-bold text-lg mb-1">{leader.username}</div>
+                <div className={`text-2xl font-mono font-bold mb-2 ${leader.profit >= 0 ? "text-primary" : "text-destructive"}`}>
+                  {leader.profit >= 0 ? "+" : ""}{leader.profit.toFixed(3)} AVAX
+                </div>
+                <div className="text-sm text-muted-foreground">{leader.winRate}% win rate</div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Rest of leaderboard */}
       <Card className="divide-y divide-border">
-        {MOCK_LEADERS.slice(3).map((leader, index) => (
+        {leaders.slice(leaders.length >= 3 ? 3 : 0).map((leader) => (
           <div key={leader.rank} className="p-4 hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-4">
               <div className={`text-2xl font-bold font-mono w-12 text-center ${getRankColor(leader.rank)}`}>
@@ -189,7 +141,7 @@ export function Leaderboard({ timeframe }: LeaderboardProps) {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold">@{leader.username}</span>
+                  <span className="font-bold font-mono text-sm">{leader.username}</span>
                   {leader.badges.map((badge) => {
                     const badgeInfo = getBadgeInfo(badge)
                     return (
@@ -208,8 +160,10 @@ export function Leaderboard({ timeframe }: LeaderboardProps) {
               </div>
 
               <div className="text-right">
-                <div className="text-xl font-mono font-bold text-primary">+${leader.profit.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground">{"Profit"}</div>
+                <div className={`text-xl font-mono font-bold ${leader.profit >= 0 ? "text-primary" : "text-destructive"}`}>
+                  {leader.profit >= 0 ? "+" : ""}{leader.profit.toFixed(3)} AVAX
+                </div>
+                <div className="text-xs text-muted-foreground">Profit</div>
               </div>
             </div>
           </div>
