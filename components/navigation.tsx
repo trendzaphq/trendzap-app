@@ -1,17 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { usePrivy } from "@privy-io/react-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { WalletButton } from "@/components/wallet-button"
 import {
-  Zap,
   Search,
-  TrendingUp,
-  Flame,
-  Clock,
   Menu,
   X,
   Trophy,
@@ -35,7 +31,6 @@ import {
 import { CreateMarketDialog } from "@/components/create-market-dialog"
 
 export function Navigation() {
-  const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [createMarketOpen, setCreateMarketOpen] = useState(false)
@@ -69,20 +64,6 @@ export function Navigation() {
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
-
-  const navCategories = [
-    { label: "TikTok", value: "tiktok" },
-    { label: "YouTube", value: "youtube" },
-    { label: "X", value: "x" },
-    { label: "Instagram", value: "instagram" },
-    { label: "Creators", value: "creators" },
-    { label: "Viral", value: "viral" },
-    { label: "Music", value: "music" },
-  ]
-
-  const setPlatform = (value: string) => {
-    router.push(`/?platform=${value}`)
-  }
 
   return (
     <>
@@ -235,52 +216,6 @@ export function Navigation() {
           </div>
         </div>
 
-        {/* Category Navigation - Scrollable */}
-        <div className="border-t border-border/40 bg-[oklch(0.09_0.01_264)]/50 overflow-x-auto">
-          <div className="container mx-auto px-4">
-            <nav className="flex items-center gap-1 py-2 no-scrollbar">
-              <Button
-                variant={pathname === "/" ? "default" : "ghost"}
-                size="sm"
-                className="gap-2 flex-shrink-0 rounded-lg"
-                asChild
-              >
-                <Link href="/">
-                  <TrendingUp className="h-4 w-4" />
-                  Trending
-                </Link>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2 flex-shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-              >
-                <Flame className="h-4 w-4" />
-                Breaking
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2 flex-shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-              >
-                <Clock className="h-4 w-4" />
-                New
-              </Button>
-              <div className="h-4 w-px bg-border/60 mx-1 flex-shrink-0" />
-              {navCategories.map((cat) => (
-                <Button
-                  key={cat.value}
-                  variant="ghost"
-                  size="sm"
-                  className="flex-shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
-                  onClick={() => setPlatform(cat.value)}
-                >
-                  {cat.label}
-                </Button>
-              ))}
-            </nav>
-          </div>
-        </div>
       </header>
 
       {/* Create Market Dialog (controlled from dropdown) */}

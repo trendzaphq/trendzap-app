@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { MarketCard } from "@/components/market-card"
-import { Button } from "@/components/ui/button"
 import { Loader2, TrendingUp } from "lucide-react"
 import { useMarketList } from "@/hooks/use-market"
 
@@ -13,16 +12,11 @@ interface MarketMeta {
 }
 
 interface MarketFeedProps {
-  title?: string
-  description?: string
   platform?: string
+  sortBy?: string
 }
 
-export function MarketFeed({
-  title = "Live Markets",
-  description = "Trending predictions ending soon",
-  platform = "",
-}: MarketFeedProps) {
+export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps) {
   const { markets: onChainMarkets, loading: contractsLoading } = useMarketList()
   const [metaMap, setMetaMap] = useState<Record<number, MarketMeta>>({})
 
@@ -43,7 +37,9 @@ export function MarketFeed({
       id: String(m.id),
       platform: m.platform as "tiktok" | "youtube" | "x" | "instagram",
       thumbnail: meta?.thumbnail_url || "",
-      title: meta?.title || `${m.postUrl.slice(0, 60)}... — Will it hit ${Number(m.threshold).toLocaleString()} ${m.metricType}?`,
+      title:
+        meta?.title ||
+        `Will ${m.postUrl.slice(0, 50)}... hit ${Number(m.threshold).toLocaleString()} ${m.metricType}?`,
       metric: m.metricType.charAt(0).toUpperCase() + m.metricType.slice(1),
       threshold: Number(m.threshold),
       currentValue: 0,
@@ -51,44 +47,48 @@ export function MarketFeed({
       underPool: m.priceUnder,
       totalBets: 0,
       endsIn: formatTimeRemaining(m.endTime),
+      endTime: m.endTime,
       creator: m.creator.slice(0, 8) + "...",
       volume: m.totalVolume,
     }
   })
 
-  const displayMarkets = platform
-    ? liveMarkets.filter((m) => m.platform === platform)
-    : liveMarkets
+  let displayMarkets = platform ? liveMarkets.filter((m) => m.platform === platform) : liveMarkets
+
+  // Basic sort
+  if (sortBy === "ending") {
+    displayMarkets = [...displayMarkets].sort((a, b) => (a.endTime || 0) - (b.endTime || 0))
+  } else if (sortBy === "volume") {
+    displayMarkets = [...displayMarkets].sort(
+      (a, b) => parseFloat(b.volume || "0") - parseFloat(a.volume || "0")
+    )
+  }
+
+  if (contractsLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (displayMarkets.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted-foreground">
+        <TrendingUp className="h-12 w-12 opacity-20" />
+        <p className="text-base font-medium">
+          {platform ? `No ${platform.toUpperCase()} markets yet` : "No markets yet"}
+        </p>
+        <p className="text-sm opacity-70">Be the first to create a prediction market.</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">{title}</h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-        <Button variant="outline" size="sm">
-          {"View All"}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {contractsLoading ? (
-          <div className="col-span-full flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : displayMarkets.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-16 gap-4 text-muted-foreground">
-            <TrendingUp className="h-12 w-12 opacity-30" />
-            <p className="text-lg font-medium">{platform ? `No ${platform.toUpperCase()} markets yet` : "No markets yet"}</p>
-            <p className="text-sm">Be the first to create a prediction market.</p>
-          </div>
-        ) : (
-          displayMarkets.map((market, index) => (
-            <MarketCard key={`${market.id}-${index}`} {...market} />
-          ))
-        )}
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      {displayMarkets.map((market, index) => (
+        <MarketCard key={`${market.id}-${index}`} {...market} />
+      ))}
     </div>
   )
 }

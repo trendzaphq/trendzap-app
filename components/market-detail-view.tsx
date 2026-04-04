@@ -26,6 +26,7 @@ import { formatEther } from "viem"
 import { EXPLORER_URL } from "@/lib/contracts"
 import { OddsChart } from "@/components/odds-chart"
 import { ShareToX } from "@/components/share-to-x"
+import { BetConfirmModal } from "@/components/bet-confirm-modal"
 
 interface MarketDetailViewProps {
   marketId: string
@@ -42,6 +43,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const [betAmount, setBetAmount] = useState("")
   const [selectedPosition, setSelectedPosition] = useState<"over" | "under" | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [meta, setMeta] = useState<{ title: string | null; thumbnail_url: string | null } | null>(null)
 
   useEffect(() => {
@@ -457,7 +459,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               className="w-full gap-2 h-12 text-base font-semibold"
               size="lg"
               disabled={!betAmount || !selectedPosition || buyLoading || isResolved}
-              onClick={placeBet}
+              onClick={() => setShowConfirmModal(true)}
             >
               {buyLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -552,6 +554,27 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
           </TabsContent>
         </Tabs>
       </Card>
+
+      {/* Bet Confirmation Modal */}
+      {selectedPosition && (
+        <BetConfirmModal
+          open={showConfirmModal}
+          onOpenChange={setShowConfirmModal}
+          position={selectedPosition}
+          amount={betAmount}
+          marketTitle={market.title}
+          metric={market.metric}
+          threshold={market.threshold}
+          overPct={isLive ? market.overPool : overPercentage}
+          underPct={isLive ? market.underPool : underPercentage}
+          expectedPayout={calculatePayout()}
+          loading={buyLoading}
+          onConfirm={async () => {
+            await placeBet()
+            setShowConfirmModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }
