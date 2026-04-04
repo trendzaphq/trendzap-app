@@ -15,11 +15,13 @@ interface MarketMeta {
 interface MarketFeedProps {
   title?: string
   description?: string
+  platform?: string
 }
 
 export function MarketFeed({
   title = "Live Markets",
   description = "Trending predictions ending soon",
+  platform = "",
 }: MarketFeedProps) {
   const { markets: onChainMarkets, loading: contractsLoading } = useMarketList()
   const [metaMap, setMetaMap] = useState<Record<number, MarketMeta>>({})
@@ -54,6 +56,10 @@ export function MarketFeed({
     }
   })
 
+  const displayMarkets = platform
+    ? liveMarkets.filter((m) => m.platform === platform)
+    : liveMarkets
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -71,14 +77,14 @@ export function MarketFeed({
           <div className="col-span-full flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : liveMarkets.length === 0 ? (
+        ) : displayMarkets.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 gap-4 text-muted-foreground">
             <TrendingUp className="h-12 w-12 opacity-30" />
-            <p className="text-lg font-medium">No markets yet</p>
+            <p className="text-lg font-medium">{platform ? `No ${platform.toUpperCase()} markets yet` : "No markets yet"}</p>
             <p className="text-sm">Be the first to create a prediction market.</p>
           </div>
         ) : (
-          liveMarkets.map((market, index) => (
+          displayMarkets.map((market, index) => (
             <MarketCard key={`${market.id}-${index}`} {...market} />
           ))
         )}

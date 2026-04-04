@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { usePrivy } from "@privy-io/react-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,8 +34,23 @@ import {
 
 export function Navigation() {
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { ready, authenticated, user, logout } = usePrivy()
+
+  const navCategories = [
+    { label: "TikTok", value: "tiktok" },
+    { label: "YouTube", value: "youtube" },
+    { label: "X", value: "x" },
+    { label: "Instagram", value: "instagram" },
+    { label: "Creators", value: "creators" },
+    { label: "Viral", value: "viral" },
+    { label: "Music", value: "music" },
+  ]
+
+  const setPlatform = (value: string) => {
+    router.push(`/?platform=${value}`)
+  }
 
   return (
     <>
@@ -196,14 +211,15 @@ export function Navigation() {
                 New
               </Button>
               <div className="h-4 w-px bg-border/60 mx-1 flex-shrink-0" />
-              {["TikTok", "YouTube", "X", "Instagram", "Creators", "Viral", "Music"].map((category) => (
+              {navCategories.map((cat) => (
                 <Button
-                  key={category}
+                  key={cat.value}
                   variant="ghost"
                   size="sm"
                   className="flex-shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={() => setPlatform(cat.value)}
                 >
-                  {category}
+                  {cat.label}
                 </Button>
               ))}
             </nav>

@@ -1,17 +1,36 @@
+"use client"
+
+import { useWallets } from "@privy-io/react-auth"
+import { useMarketList } from "@/hooks/use-market"
 import { Card } from "@/components/ui/card"
-import { TrendingUp, Target, DollarSign, Zap } from "lucide-react"
+import { TrendingUp, Target, Zap, BarChart3 } from "lucide-react"
 
 export function UserStats() {
+  const { wallets } = useWallets()
+  const { markets } = useMarketList()
+  const address = wallets[0]?.address
+
+  const marketsCreated = address
+    ? markets.filter((m) => m.creator?.toLowerCase() === address.toLowerCase()).length
+    : 0
+
+  const totalVolume = address
+    ? markets
+        .filter((m) => m.creator?.toLowerCase() === address.toLowerCase())
+        .reduce((sum, m) => sum + parseFloat(m.totalVolume || "0"), 0)
+        .toFixed(3)
+    : "0.000"
+
   const stats = [
-    { label: "Total Profit", value: "$45,234", icon: DollarSign, color: "text-primary" },
-    { label: "Win Rate", value: "78.5%", icon: Target, color: "text-accent" },
-    { label: "Total Bets", value: "432", icon: Zap, color: "text-secondary" },
-    { label: "Markets Created", value: "23", icon: TrendingUp, color: "text-primary" },
+    { label: "Markets Created", value: String(marketsCreated), icon: TrendingUp, color: "text-primary" },
+    { label: "Volume (AVAX)", value: totalVolume, icon: BarChart3, color: "text-secondary" },
+    { label: "Win Rate", value: "—", icon: Target, color: "text-accent" },
+    { label: "Total Bets", value: "—", icon: Zap, color: "text-muted-foreground" },
   ]
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">{"Stats"}</h3>
+      <h3 className="text-lg font-semibold mb-4">Stats</h3>
       <div className="grid grid-cols-2 gap-4">
         {stats.map((stat) => (
           <div key={stat.label} className="text-center space-y-2">
@@ -21,6 +40,7 @@ export function UserStats() {
           </div>
         ))}
       </div>
+      <p className="text-xs text-muted-foreground text-center mt-4">Win rate & bets require indexer</p>
     </Card>
   )
 }

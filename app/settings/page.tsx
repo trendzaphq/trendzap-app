@@ -6,7 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Lock, Eye, Wallet, LogOut, Shield } from "lucide-react"
+import {
+  Bell,
+  Lock,
+  Eye,
+  Wallet,
+  LogOut,
+  Shield,
+  ExternalLink,
+  Copy,
+} from "lucide-react"
+import { usePrivy, useWallets } from "@privy-io/react-auth"
 
 export default function SettingsPage() {
   return (
@@ -86,6 +96,9 @@ export default function SettingsPage() {
 }
 
 function AccountSettings() {
+  const { user } = usePrivy()
+  const email = user?.email?.address || ""
+
   return (
     <Card className="p-6">
       <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
@@ -94,23 +107,10 @@ function AccountSettings() {
       </h2>
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-2">Username</label>
-          <Input defaultValue="@cryptowhale" className="bg-card" />
-        </div>
-        <div>
           <label className="block text-sm font-medium mb-2">Email</label>
-          <Input defaultValue="whale@example.com" className="bg-card" />
+          <Input defaultValue={email} readOnly className="bg-card" />
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-2">Display Name</label>
-          <Input defaultValue="Crypto Whale" className="bg-card" />
-        </div>
-        <div className="flex gap-2 pt-4">
-          <Button className="bg-primary hover:bg-primary/90">Save Changes</Button>
-          <Button variant="outline" className="bg-transparent">
-            Cancel
-          </Button>
-        </div>
+        <p className="text-xs text-muted-foreground">Account details are managed through your Privy login.</p>
       </div>
     </Card>
   )
@@ -184,6 +184,14 @@ function NotificationSettings() {
 }
 
 function WalletSettings() {
+  const { logout } = usePrivy()
+  const { wallets } = useWallets()
+  const address = wallets[0]?.address
+
+  const copyAddress = () => {
+    if (address) navigator.clipboard.writeText(address)
+  }
+
   return (
     <Card className="p-6">
       <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
@@ -193,21 +201,30 @@ function WalletSettings() {
       <div className="space-y-4">
         <div className="p-4 bg-card border border-border rounded-lg">
           <p className="text-sm font-medium mb-2">Connected Wallet</p>
-          <p className="font-mono text-lg mb-4">0x742d35Cc6634C0532925a3b844Bc9e7595C9A</p>
-          <div className="flex gap-2">
-            <Button size="sm" className="bg-primary hover:bg-primary/90">
-              View on Chain
-            </Button>
-            <Button size="sm" variant="outline" className="bg-transparent gap-2">
-              <LogOut className="h-4 w-4" />
-              Disconnect
-            </Button>
-          </div>
+          {address ? (
+            <>
+              <p className="font-mono text-sm break-all mb-4">{address}</p>
+              <div className="flex gap-2">
+                <Button size="sm" className="bg-primary hover:bg-primary/90 gap-2" asChild>
+                  <a href={`https://snowtrace.io/address/${address}`} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-3 w-3" />
+                    View on Chain
+                  </a>
+                </Button>
+                <Button size="sm" variant="outline" className="bg-transparent gap-2" onClick={copyAddress}>
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </Button>
+                <Button size="sm" variant="outline" className="bg-transparent gap-2" onClick={logout}>
+                  <LogOut className="h-4 w-4" />
+                  Disconnect
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">No wallet connected</p>
+          )}
         </div>
-        <Button variant="outline" className="w-full bg-transparent gap-2">
-          <Wallet className="h-4 w-4" />
-          Connect Additional Wallet
-        </Button>
       </div>
     </Card>
   )

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -8,6 +9,7 @@ import { Flame, Clock, TrendingUp, DollarSign, Filter, X } from "lucide-react"
 
 interface MarketFiltersProps {
   onFilterChange?: (filters: FilterState) => void
+  activePlatform?: string
 }
 
 interface FilterState {
@@ -17,7 +19,10 @@ interface FilterState {
   minPool: number
 }
 
-export function MarketFilters({ onFilterChange }: MarketFiltersProps) {
+const PLATFORMS = ["tiktok", "youtube", "x", "instagram"]
+
+export function MarketFilters({ onFilterChange, activePlatform = "" }: MarketFiltersProps) {
+  const router = useRouter()
   const [activeFilters, setActiveFilters] = useState<string[]>([])
   const [showAdvanced, setShowAdvanced] = useState(false)
 
@@ -27,6 +32,10 @@ export function MarketFilters({ onFilterChange }: MarketFiltersProps) {
 
   const clearFilters = () => {
     setActiveFilters([])
+  }
+
+  const setPlatform = (p: string) => {
+    router.push(activePlatform === p ? "/" : `/?platform=${p}`)
   }
 
   return (
@@ -72,38 +81,17 @@ export function MarketFilters({ onFilterChange }: MarketFiltersProps) {
 
         <div className="h-6 w-px bg-border mx-2" />
 
-        <Button
-          size="sm"
-          variant={activeFilters.includes("tiktok") ? "default" : "outline"}
-          className="shrink-0"
-          onClick={() => toggleFilter("tiktok")}
-        >
-          {"TikTok"}
-        </Button>
-        <Button
-          size="sm"
-          variant={activeFilters.includes("youtube") ? "default" : "outline"}
-          className="shrink-0"
-          onClick={() => toggleFilter("youtube")}
-        >
-          {"YouTube"}
-        </Button>
-        <Button
-          size="sm"
-          variant={activeFilters.includes("x") ? "default" : "outline"}
-          className="shrink-0"
-          onClick={() => toggleFilter("x")}
-        >
-          {"X"}
-        </Button>
-        <Button
-          size="sm"
-          variant={activeFilters.includes("instagram") ? "default" : "outline"}
-          className="shrink-0"
-          onClick={() => toggleFilter("instagram")}
-        >
-          {"Instagram"}
-        </Button>
+        {PLATFORMS.map((p) => (
+          <Button
+            key={p}
+            size="sm"
+            variant={activePlatform === p ? "default" : "outline"}
+            className="shrink-0"
+            onClick={() => setPlatform(p)}
+          >
+            {p.toUpperCase()}
+          </Button>
+        ))}
 
         <Button
           size="sm"
