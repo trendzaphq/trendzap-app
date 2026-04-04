@@ -24,7 +24,7 @@ import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
 const PLATFORM_MAP: Record<string, number> = { twitter: 0, x: 0, youtube: 1, tiktok: 2, instagram: 3 }
 const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
 
-export function CreateMarketDialog() {
+export function CreateMarketDialog({ triggerClassName }: { triggerClassName?: string } = {}) {
   const { wallets } = useWallets()
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState("")
@@ -178,7 +178,7 @@ export function CreateMarketDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+        <Button className={`gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold${triggerClassName ? ` ${triggerClassName}` : ""}`}>
           <Plus className="h-4 w-4" />
           {"Create Market"}
         </Button>

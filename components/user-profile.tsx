@@ -4,8 +4,9 @@ import { usePrivy, useWallets } from "@privy-io/react-auth"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Zap, Settings, Copy, ExternalLink } from "lucide-react"
+import { Settings, Copy, ExternalLink } from "lucide-react"
 import Link from "next/link"
+import { CreateMarketDialog } from "@/components/create-market-dialog"
 
 export function UserProfile() {
   const { user, authenticated } = usePrivy()
@@ -56,12 +57,7 @@ export function UserProfile() {
         </div>
 
         <div className="pt-4 space-y-2">
-          <Link href="/" className="block">
-            <Button className="w-full gap-2">
-              <Zap className="h-4 w-4" />
-              Create Market
-            </Button>
-          </Link>
+          <CreateMarketDialog triggerClassName="w-full" />
           <Link href="/settings" className="block">
             <Button variant="outline" className="w-full gap-2 bg-transparent">
               <Settings className="h-4 w-4" />
