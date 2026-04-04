@@ -54,6 +54,16 @@ export async function ensureSchema() {
       value TEXT NOT NULL
     )
   `
+  await sql`
+    CREATE TABLE IF NOT EXISTS price_history (
+      id          SERIAL PRIMARY KEY,
+      market_id   INTEGER NOT NULL,
+      block_number BIGINT NOT NULL,
+      price_over  NUMERIC NOT NULL,
+      price_under NUMERIC NOT NULL,
+      tx_hash     TEXT UNIQUE NOT NULL
+    )
+  `
 }
 
 export interface MarketMeta {
@@ -178,6 +188,29 @@ export async function getLeaderboard(since?: number): Promise<LeaderboardEntry[]
     ORDER BY (COALESCE((SELECT SUM(CAST(c2.payout_wei AS NUMERIC)) FROM claim_events c2 WHERE LOWER(c2.user_address) = LOWER(b.trader_address)), 0) - COALESCE(SUM(CAST(b.cost_wei AS NUMERIC)), 0)) DESC
     LIMIT 100
   `) as LeaderboardEntry[]
+}
+
+export interface PricePoint {
+  id: number
+  market_id: number
+  block_number: string
+  price_over: number  // 0-100
+  price_under: number
+  tx_hash: string
+}
+
+export async function insertPricePoint(marketId: number, blockNumber: string, priceOver: number, priceUnder: number, txHash: string) {
+  await sql`
+    INSERT INTO price_history (market_id, block_number, price_over, price_under, tx_hash)
+    VALUES (${marketId}, ${blockNumber}, ${priceOver}, ${priceUnder}, ${txHash})
+    ON CONFLICT (tx_hash) DO NOTHING
+  `
+}
+
+export async function getPriceHistory(marketId: number): Promise<PricePoint[]> {
+  return (await sql`
+    SELECT * FROM price_history WHERE market_id = ${marketId} ORDER BY block_number ASC LIMIT 200
+  `) as PricePoint[]
 }
 
 export { sql }

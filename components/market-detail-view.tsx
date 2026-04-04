@@ -12,27 +12,20 @@ import {
   TrendingDown,
   Clock,
   Users,
-  Share2,
   ExternalLink,
   Activity,
   BarChart3,
   Zap,
   Loader2,
   Trophy,
+  DollarSign,
 } from "lucide-react"
 import { useMarket, useBuyShares, useClaimWinnings, useUserPosition } from "@/hooks/use-market"
+import { useCountdown } from "@/hooks/use-countdown"
 import { formatEther } from "viem"
 import { EXPLORER_URL } from "@/lib/contracts"
-
-function formatTimeRemaining(endTimeUnix: number): string {
-  const now = Math.floor(Date.now() / 1000)
-  const diff = endTimeUnix - now
-  if (diff <= 0) return "Ended"
-  const hours = Math.floor(diff / 3600)
-  const minutes = Math.floor((diff % 3600) / 60)
-  if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`
-  return `${hours}h ${minutes}m`
-}
+import { OddsChart } from "@/components/odds-chart"
+import { ShareToX } from "@/components/share-to-x"
 
 interface MarketDetailViewProps {
   marketId: string
@@ -44,6 +37,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const { buyShares, txHash, loading: buyLoading, error: buyError } = useBuyShares()
   const { claim, loading: claimLoading } = useClaimWinnings()
   const position = useUserPosition(numericId)
+  const countdown = useCountdown(onChainMarket?.endTime || 0)
 
   const [betAmount, setBetAmount] = useState("")
   const [selectedPosition, setSelectedPosition] = useState<"over" | "under" | null>(null)
@@ -87,7 +81,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
         overPool: onChainMarket.priceOver,
         underPool: onChainMarket.priceUnder,
         totalBets: 0,
-        endsIn: formatTimeRemaining(onChainMarket.endTime),
+        endsIn: countdown || "Loading...",
         endsAt: new Date(onChainMarket.endTime * 1000),
         creator: onChainMarket.creator,
         sourceUrl: onChainMarket.postUrl,
@@ -304,6 +298,19 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                     View on Explorer
                   </a>
                 )}
+                <div className="mt-3">
+                  <ShareToX
+                    marketId={numericId}
+                    title={market.title}
+                    platform={market.platform}
+                    metric={market.metric}
+                    threshold={market.threshold}
+                    betAmount={betAmount}
+                    position={selectedPosition ?? undefined}
+                    variant="outline"
+                    size="sm"
+                  />
+                </div>
               </div>
             )}
 
@@ -460,13 +467,31 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               {buyLoading ? "Placing Bet..." : isResolved ? "Market Resolved" : "Zap It!"}
             </Button>
 
-            <Button variant="ghost" className="w-full gap-2" size="sm">
-              <Share2 className="h-4 w-4" />
-              {"Share Market"}
-            </Button>
+            <ShareToX
+              marketId={numericId}
+              title={market.title}
+              platform={market.platform}
+              metric={market.metric}
+              threshold={market.threshold}
+              variant="ghost"
+              size="sm"
+            />
           </div>
         </Card>
       </div>
+
+      {/* Odds Chart */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold">Live Odds History</h3>
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-xs text-muted-foreground">Live</span>
+          </div>
+        </div>
+        <OddsChart marketId={numericId} />
+      </Card>
 
       {/* Activity Tabs */}
       <Card className="p-6">

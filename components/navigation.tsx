@@ -23,7 +23,7 @@ import {
   ShieldCheck,
   Plus,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +40,35 @@ export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [createMarketOpen, setCreateMarketOpen] = useState(false)
   const { ready, authenticated, user, logout } = usePrivy()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<{ market_id: number; title: string | null; thumbnail_url: string | null; creator_address: string | null }[]>([])
+  const searchRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([])
+      return
+    }
+    const timer = setTimeout(() => {
+      fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`)
+        .then((r) => r.json())
+        .then((d) => { if (d.ok) setSearchResults(d.results) })
+        .catch(() => {})
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Close search results on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchResults([])
+        setSearchQuery("")
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const navCategories = [
     { label: "TikTok", value: "tiktok" },
@@ -74,15 +103,31 @@ export function Navigation() {
 
           {/* Center: Search Bar - Hidden on mobile */}
           <div className="flex-1 max-w-2xl hidden lg:block mx-4">
-            <div className="relative group">
+            <div className="relative group" ref={searchRef}>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
               <Input
                 placeholder="Search markets, creators, trends..."
                 className="w-full pl-10 pr-16 h-10 bg-[oklch(0.14_0.02_264)] border-border/60 focus:border-primary/50 focus:bg-[oklch(0.16_0.02_264)] transition-all placeholder:text-muted-foreground/70"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
               <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-border/60 bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                 /
               </kbd>
+              {searchResults.length > 0 && searchQuery.length >= 2 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border/60 rounded-lg shadow-2xl z-50 overflow-hidden">
+                  {searchResults.map((r) => (
+                    <button
+                      key={r.market_id}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 text-left text-sm"
+                      onClick={() => { router.push(`/market/${r.market_id}`); setSearchQuery(""); setSearchResults([]) }}
+                    >
+                      <span className="flex-1 truncate">{r.title || `Market #${r.market_id}`}</span>
+                      <span className="text-xs text-muted-foreground">#{r.market_id}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -184,7 +229,7 @@ export function Navigation() {
             )}
 
             {/* Mobile Menu Toggle */}
-            <Button size="sm" variant="ghost" className="lg:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <Button size="sm" variant="ghost" className="hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>

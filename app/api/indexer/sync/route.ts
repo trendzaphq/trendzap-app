@@ -8,6 +8,7 @@ import {
   insertBetEvent,
   insertResolutionEvent,
   insertClaimEvent,
+  insertPricePoint,
 } from "@/lib/db"
 
 // Default start block — set to a block before TrendZap was deployed on mainnet.
@@ -68,6 +69,10 @@ export async function POST() {
           block_timestamp: null,
         })
         betsIndexed++
+        // Store price point (newPriceOver/newPriceUnder are 0-1e18 range, convert to 0-100)
+        const priceOver = Number((log.args.newPriceOver ?? 0n) * 100n / BigInt("1000000000000000000"))
+        const priceUnder = Number((log.args.newPriceUnder ?? 0n) * 100n / BigInt("1000000000000000000"))
+        await insertPricePoint(Number(log.args.marketId), String(log.blockNumber), priceOver, priceUnder, log.transactionHash ?? "")
       }
 
       for (const log of resolvedLogs) {

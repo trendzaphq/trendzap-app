@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, TrendingDown, Clock, Users, Zap } from "lucide-react"
+import { useCountdown } from "@/hooks/use-countdown"
 
 interface MarketCardProps {
   id: string
@@ -19,6 +20,7 @@ interface MarketCardProps {
   underPool: number
   totalBets: number
   endsIn: string
+  endTime?: number
   creator?: string
   volume?: string
 }
@@ -35,10 +37,13 @@ export function MarketCard({
   underPool,
   totalBets,
   endsIn,
+  endTime,
   creator,
   volume,
 }: MarketCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const countdown = useCountdown(endTime || 0)
+  const timeDisplay = endTime ? countdown : endsIn
   const totalPool = overPool + underPool
   // Guard against division by zero on fresh markets
   const overPercentage = totalPool > 0 ? (overPool / totalPool) * 100 : 50
@@ -82,7 +87,7 @@ export function MarketCard({
           {/* Time remaining */}
           <div className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-md">
             <Clock className="h-3 w-3 text-accent" />
-            <span className="text-xs font-mono text-foreground">{endsIn}</span>
+            <span className="text-xs font-mono text-foreground">{timeDisplay}</span>
           </div>
 
           {/* Current value overlay */}

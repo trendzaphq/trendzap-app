@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { PrivyClientProvider } from "@/components/providers/privy-provider"
 import { CreateMarketFab } from "@/components/create-market-fab"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -38,10 +39,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`font-sans antialiased`}>
+      <body className={`font-sans antialiased pb-16 md:pb-0`}>
         <PrivyClientProvider>
           {children}
           <CreateMarketFab />
+          <MobileBottomNav />
         </PrivyClientProvider>
         <Analytics />
       </body>

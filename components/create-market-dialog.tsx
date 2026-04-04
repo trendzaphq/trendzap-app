@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useWallets } from "@privy-io/react-auth"
 import { parseEther } from "viem"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
+import { getEnabledPlatforms } from "@/lib/platforms"
 
 // Match ViralityMarketV2.sol enum order
 const PLATFORM_MAP: Record<string, number> = { twitter: 0, x: 0, youtube: 1, tiktok: 2, instagram: 3 }
@@ -233,22 +234,12 @@ export function CreateMarketDialog({
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" className="gap-2 bg-transparent" disabled>
-                  <img src="/placeholder.svg?height=16&width=16" alt="TikTok" className="h-4 w-4" />
-                  {"TikTok"}
-                </Button>
-                <Button variant="outline" className="gap-2 bg-transparent" disabled>
-                  <img src="/placeholder.svg?height=16&width=16" alt="YouTube" className="h-4 w-4" />
-                  {"YouTube"}
-                </Button>
-                <Button variant="outline" className="gap-2 bg-transparent" disabled>
-                  <img src="/placeholder.svg?height=16&width=16" alt="X" className="h-4 w-4" />
-                  {"X / Twitter"}
-                </Button>
-                <Button variant="outline" className="gap-2 bg-transparent" disabled>
-                  <img src="/placeholder.svg?height=16&width=16" alt="Instagram" className="h-4 w-4" />
-                  {"Instagram"}
-                </Button>
+                {getEnabledPlatforms().map((p) => (
+                  <Button key={p.id} variant="outline" className="gap-2 bg-transparent" disabled>
+                    <img src="/placeholder.svg?height=16&width=16" alt={p.label} className="h-4 w-4" />
+                    {p.label}
+                  </Button>
+                ))}
               </div>
 
               <Button className="w-full gap-2" size="lg" onClick={analyzeUrl} disabled={!url || isAnalyzing}>
