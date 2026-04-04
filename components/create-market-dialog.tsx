@@ -44,23 +44,33 @@ export function CreateMarketDialog() {
 
   const analyzeUrl = async () => {
     setIsAnalyzing(true)
-    // Detect platform from URL
     let platform = "tiktok"
     if (url.includes("twitter.com") || url.includes("x.com")) platform = "twitter"
     else if (url.includes("youtube.com") || url.includes("youtu.be")) platform = "youtube"
     else if (url.includes("instagram.com")) platform = "instagram"
 
-    setTimeout(() => {
+    try {
+      const intelligenceUrl = process.env.NEXT_PUBLIC_INTELLIGENCE_URL
+      const res = await fetch(`${intelligenceUrl}/analyze/trend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, platform }),
+        signal: AbortSignal.timeout(8000),
+      })
+      const data = res.ok ? await res.json() : null
       setPreviewData({
         platform,
-        thumbnail: "/viral-dance-tiktok.jpg",
-        currentViews: 45230,
-        currentLikes: 12340,
-        suggestedTitle: "Will this content go viral?",
+        thumbnail: data?.thumbnail_url || "",
+        currentViews: data?.current_views ?? data?.views ?? 0,
+        currentLikes: data?.current_likes ?? data?.likes ?? 0,
+        suggestedTitle: data?.suggested_title || `Will this ${platform} content go viral?`,
       })
-      setIsAnalyzing(false)
-      setStep("details")
-    }, 1500)
+      if (data?.suggested_threshold) setThreshold(String(data.suggested_threshold))
+    } catch {
+      setPreviewData({ platform, thumbnail: "", currentViews: 0, currentLikes: 0, suggestedTitle: `Will this ${platform} content go viral?` })
+    }
+    setIsAnalyzing(false)
+    setStep("details")
   }
 
   const getEndTimeUnix = (): bigint => {
@@ -99,7 +109,7 @@ export function CreateMarketDialog() {
         postUrl: url,
         platform: PLATFORM_MAP[previewData?.platform || "tiktok"] ?? 2,
         metricType: METRIC_MAP[metric] ?? 1,
-        threshold: parseEther(threshold).toString(),
+        threshold: BigInt(threshold).toString(), // raw metric count, NOT wei
         startTime,
         endTime,
         resolutionTime,
