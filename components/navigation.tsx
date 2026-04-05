@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { usePrivy } from "@privy-io/react-auth"
+import { usePrivy, useWallets } from "@privy-io/react-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { WalletButton } from "@/components/wallet-button"
@@ -29,11 +29,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NotificationsBell } from "@/components/notifications-bell"
+import { GradientAvatar } from "@/components/user-profile"
 
 export function Navigation() {
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { ready, authenticated, user, logout } = usePrivy()
+  const { ready, authenticated, user, logout, login } = usePrivy()
+  const { wallets } = useWallets()
+  const navAddress = wallets[0]?.address ?? ""
+  const navInitials = (user?.email?.address?.charAt(0) || navAddress.charAt(2) || "U").toUpperCase()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<{ market_id: number; title: string | null; thumbnail_url: string | null; creator_address: string | null }[]>([])
   const searchRef = useRef<HTMLDivElement>(null)
@@ -128,7 +132,21 @@ export function Navigation() {
 
             {authenticated && <NotificationsBell />}
 
-            <WalletButton />
+            {/* WalletButton — desktop only (too busy on mobile) */}
+            <div className="hidden md:flex">
+              <WalletButton />
+            </div>
+
+            {/* Mobile: compact connect button for unauthenticated */}
+            {ready && !authenticated && (
+              <Button
+                size="sm"
+                onClick={login}
+                className="md:hidden h-8 px-3 text-xs bg-primary hover:bg-primary/90 font-semibold"
+              >
+                Connect
+              </Button>
+            )}
 
             {ready && authenticated && (
               <DropdownMenu>
@@ -136,11 +154,9 @@ export function Navigation() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-9 w-9 rounded-full p-0 bg-gradient-to-br from-primary/20 to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/30"
+                    className="h-9 w-9 rounded-full p-0 overflow-hidden border border-primary/20 hover:border-primary/40 transition-colors"
                   >
-                    <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xs font-bold text-primary-foreground">
-                      {user?.email?.address?.charAt(0).toUpperCase() || "U"}
-                    </div>
+                    <GradientAvatar address={navAddress} initials={navInitials} size={36} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
