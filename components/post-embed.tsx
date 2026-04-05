@@ -1,11 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Eye, Heart, Repeat2, MessageCircle, Loader2, RefreshCw, ExternalLink } from "lucide-react"
+import { Eye, Heart, Repeat2, MessageCircle, Loader2, RefreshCw, ExternalLink, BookmarkIcon, Quote } from "lucide-react"
 
 interface EmbedStats {
-  // Twitter/X
-  impression_count?: number
+  // Twitter/X (from public_metrics — impression_count NOT available via Bearer token)
   like_count?: number
   retweet_count?: number
   reply_count?: number
@@ -22,6 +21,7 @@ export interface EmbedData {
   author_name?: string
   title?: string
   thumbnail_url?: string
+  post_text?: string | null
   stats?: EmbedStats | null
 }
 
@@ -37,9 +37,10 @@ interface PostEmbedProps {
   platform?: string
   className?: string
   compact?: boolean
+  onData?: (data: EmbedData) => void
 }
 
-export function PostEmbed({ url, platform: platformHint, className = "", compact = false }: PostEmbedProps) {
+export function PostEmbed({ url, platform: _platformHint, className = "", compact = false, onData }: PostEmbedProps) {
   const [data, setData] = useState<EmbedData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,6 +61,7 @@ export function PostEmbed({ url, platform: platformHint, className = "", compact
       const d: EmbedData = await res.json()
       setData(d)
       setLastUpdated(new Date())
+      onData?.(d)
     } catch {
       setError("Could not load post preview")
     } finally {
@@ -104,10 +106,10 @@ export function PostEmbed({ url, platform: platformHint, className = "", compact
 
   if (loading) {
     return (
-      <div className={`flex items-center justify-center py-10 ${className}`}>
+      <div className={`flex items-center justify-center py-8 ${className}`}>
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Loading post…</span>
+          <span className="text-xs text-muted-foreground">Loading post preview…</span>
         </div>
       </div>
     )
@@ -135,54 +137,53 @@ export function PostEmbed({ url, platform: platformHint, className = "", compact
   if (!data) return null
 
   const stats = data.stats
-  const hasStats = stats && Object.keys(stats).length > 0
+  const platform = data.platform
 
-  const views = stats?.impression_count ?? stats?.view_count
-  const likes = stats?.like_count
-  const reposts = stats?.retweet_count
-  const replies = stats?.reply_count ?? stats?.comment_count
+  // Build stat list — only include what's actually available per platform
+  // Twitter Bearer token provides: like, retweet, reply, quote, bookmark (NOT impressions/views)
+  // YouTube provides: view, like, comment
+  const statItems: { icon: React.ElementType; label: string; value: number | undefined; live?: boolean }[] = []
+
+  if (platform === "x") {
+    if (stats?.like_count !== undefined) statItems.push({ icon: Heart, label: "Likes", value: stats.like_count })
+    if (stats?.retweet_count !== undefined) statItems.push({ icon: Repeat2, label: "Reposts", value: stats.retweet_count })
+    if (stats?.reply_count !== undefined) statItems.push({ icon: MessageCircle, label: "Replies", value: stats.reply_count })
+    if (stats?.quote_count !== undefined) statItems.push({ icon: Quote, label: "Quotes", value: stats.quote_count })
+  } else if (platform === "youtube") {
+    if (stats?.view_count !== undefined) statItems.push({ icon: Eye, label: "Views", value: stats.view_count, live: true })
+    if (stats?.like_count !== undefined) statItems.push({ icon: Heart, label: "Likes", value: stats.like_count })
+    if (stats?.comment_count !== undefined) statItems.push({ icon: MessageCircle, label: "Comments", value: stats.comment_count })
+  }
+
+  const hasStats = statItems.length > 0
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {/* Live stat pills */}
+      {/* Stat pills — horizontal scrollable row (mobile-friendly) */}
       {hasStats && !compact && (
-        <div className="grid grid-cols-4 gap-1.5">
-          <StatPill icon={Eye} label="Views" value={views} live />
-          <StatPill icon={Heart} label="Likes" value={likes} />
-          <StatPill icon={Repeat2} label="Reposts" value={reposts} />
-          <StatPill icon={MessageCircle} label="Replies" value={replies} />
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
+          {statItems.map((item) => (
+            <StatPill key={item.label} icon={item.icon} label={item.label} value={item.value} live={item.live} />
+          ))}
+          {/* Live indicator chip */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/40 border border-border/40 shrink-0 ml-auto">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-[10px] text-cyan-400 font-medium uppercase tracking-wider">live</span>
+          </div>
         </div>
       )}
 
-      {/* Compact stats (single row) */}
+      {/* Compact stats — inline row */}
       {hasStats && compact && (
-        <div className="flex items-center gap-3 px-1 text-xs text-muted-foreground">
-          {views !== undefined && (
-            <span className="flex items-center gap-1">
-              <Eye className="h-3 w-3" />
-              <span className="font-mono font-semibold text-foreground">{fmt(views)}</span>
+        <div className="flex items-center gap-3 px-1 text-xs text-muted-foreground flex-wrap">
+          {statItems.map((item) => (
+            <span key={item.label} className="flex items-center gap-1">
+              <item.icon className="h-3 w-3" />
+              <span className="font-mono font-semibold text-foreground">{fmt(item.value)}</span>
             </span>
-          )}
-          {likes !== undefined && (
-            <span className="flex items-center gap-1">
-              <Heart className="h-3 w-3" />
-              <span className="font-mono font-semibold text-foreground">{fmt(likes)}</span>
-            </span>
-          )}
-          {reposts !== undefined && (
-            <span className="flex items-center gap-1">
-              <Repeat2 className="h-3 w-3" />
-              <span className="font-mono font-semibold text-foreground">{fmt(reposts)}</span>
-            </span>
-          )}
-          {replies !== undefined && (
-            <span className="flex items-center gap-1">
-              <MessageCircle className="h-3 w-3" />
-              <span className="font-mono font-semibold text-foreground">{fmt(replies)}</span>
-            </span>
-          )}
-          <span className="ml-auto flex items-center gap-1 text-green-400 text-[10px]">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+          ))}
+          <span className="ml-auto flex items-center gap-1 text-cyan-400 text-[10px]">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
             live
           </span>
         </div>
@@ -200,11 +201,10 @@ export function PostEmbed({ url, platform: platformHint, className = "", compact
         dangerouslySetInnerHTML={{ __html: data.embed_html }}
       />
 
-      {/* Footer: refresh + timestamp */}
+      {/* Footer: timestamp + refresh */}
       {hasStats && !compact && lastUpdated && (
         <div className="flex items-center justify-between px-1">
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-[10px] text-muted-foreground">
             Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </span>
           <button
@@ -232,13 +232,15 @@ function StatPill({
   live?: boolean
 }) {
   return (
-    <div className="flex flex-col items-center p-2 rounded-lg bg-muted/50 border border-border/40 gap-0.5">
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/40 shrink-0">
       <div className="flex items-center gap-1">
         <Icon className="h-3 w-3 text-muted-foreground" />
-        {live && <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />}
+        {live && <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />}
       </div>
-      <span className="text-sm font-bold font-mono tabular-nums leading-none">{fmt(value)}</span>
-      <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{label}</span>
+      <div className="flex flex-col min-w-0">
+        <span className="text-sm font-bold font-mono tabular-nums leading-none">{fmt(value)}</span>
+        <span className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">{label}</span>
+      </div>
     </div>
   )
 }

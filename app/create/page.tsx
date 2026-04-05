@@ -16,7 +16,7 @@ import {
   CheckCircle2, AlertTriangle, Info, Clock,
   ArrowLeft, ArrowRight, ShieldCheck, ExternalLink
 } from "lucide-react"
-import { PostEmbed } from "@/components/post-embed"
+import { PostEmbed, type EmbedData } from "@/components/post-embed"
 
 const PLATFORM_MAP: Record<string, number> = { twitter: 0, x: 0, youtube: 1, tiktok: 2, instagram: 3 }
 const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
@@ -62,11 +62,15 @@ export default function CreateMarketPage() {
 
   const [step, setStep] = useState<Step>("url")
   const [url, setUrl] = useState("")
-  const [postText, setPostText] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [riskData, setRiskData] = useState<RiskData | null>(null)
   const [isCheckingRisk, setIsCheckingRisk] = useState(false)
+
+  // Auto title generation from embed data
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false)
+  const [autoSuggestedTitle, setAutoSuggestedTitle] = useState("")
+  const [autoViralityNote, setAutoViralityNote] = useState("")
 
   // Form fields
   const [customTitle, setCustomTitle] = useState("")
@@ -100,6 +104,9 @@ export default function CreateMarketPage() {
         return false
       }
     }
+    // Reset auto-title when URL changes
+    setAutoSuggestedTitle("")
+    setAutoViralityNote("")
     if (!url.trim() || !isValidPostUrl(url.trim())) {
       setEmbedUrl(null)
       return
@@ -116,42 +123,39 @@ export default function CreateMarketPage() {
     return "x"
   }
 
+  // Auto-called when embed loads — extracts post_text and generates AI title
+  const handleEmbedData = async (data: EmbedData) => {
+    const text = data.post_text?.trim()
+    if (!text || text.length < 10) return
+    setIsGeneratingTitle(true)
+    try {
+      const platform = detectPlatform(url)
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platform, post_text: text, url: url.split("?")[0] }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        if (d.suggested_title) setAutoSuggestedTitle(d.suggested_title)
+        if (d.virality_assessment) setAutoViralityNote(d.virality_assessment)
+      }
+    } catch {
+      // fail silently — user can proceed with generic title
+    } finally {
+      setIsGeneratingTitle(false)
+    }
+  }
+
   const analyzeUrl = async () => {
     setIsAnalyzing(true)
     setError(null)
     const platform = detectPlatform(url)
-    const cleanUrl = url.split("?")[0]
-
-    // If user pasted post text, send it to the AI for a title suggestion
-    if (postText.trim().length > 10) {
-      try {
-        const res = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ platform, post_text: postText.trim(), url: cleanUrl }),
-        })
-        const data = res.ok ? await res.json() : null
-        setPreview({
-          platform,
-          suggestedTitle: data?.suggested_title || `Will this ${platform.toUpperCase()} post go viral?`,
-          viralityAssessment: data?.virality_assessment || undefined,
-          postText: postText.trim(),
-        })
-      } catch {
-        setPreview({
-          platform,
-          suggestedTitle: `Will this ${platform.toUpperCase()} post go viral?`,
-          postText: postText.trim(),
-        })
-      }
-    } else {
-      // No post text — just detect platform and proceed
-      setPreview({
-        platform,
-        suggestedTitle: `Will this ${platform.toUpperCase()} post go viral?`,
-      })
-    }
-
+    setPreview({
+      platform,
+      suggestedTitle: autoSuggestedTitle || `Will this ${platform.toUpperCase()} post go viral?`,
+      viralityAssessment: autoViralityNote || undefined,
+    })
     setIsAnalyzing(false)
     setStep("details")
   }
@@ -350,30 +354,17 @@ export default function CreateMarketPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="post-text">
-                      Post text{" "}
-                      <span className="text-muted-foreground font-normal">(optional — paste the tweet for AI title suggestion)</span>
-                    </Label>
-                    <Textarea
-                      id="post-text"
-                      placeholder="Paste the post content here for an AI-generated market title…"
-                      rows={3}
-                      className="resize-none text-sm"
-                      value={postText}
-                      onChange={(e) => setPostText(e.target.value)}
-                    />
-                  </div>
-
                   <Button
                     className="w-full h-11 gap-2 font-semibold"
                     onClick={analyzeUrl}
-                    disabled={!url.trim() || isAnalyzing}
+                    disabled={!url.trim() || isAnalyzing || isGeneratingTitle}
                   >
                     {isAnalyzing ? (
                       <><Loader2 className="h-4 w-4 animate-spin" />Analyzing post…</>
-                    ) : postText.trim().length > 10 ? (
-                      <><Sparkles className="h-4 w-4" />Analyze &amp; Continue</>
+                    ) : isGeneratingTitle ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" />Generating title…</>
+                    ) : autoSuggestedTitle ? (
+                      <><Sparkles className="h-4 w-4" />Continue with AI Title</>
                     ) : (
                       <><ArrowRight className="h-4 w-4" />Continue</>
                     )}
@@ -764,7 +755,7 @@ export default function CreateMarketPage() {
                     <div className="space-y-3">
                       {[
                         { icon: Link2, title: "1. Paste a URL", desc: "Drop any public X (Twitter) or YouTube post link." },
-                        { icon: Sparkles, title: "2. AI analyzes it", desc: "Paste the post text for an AI-generated market title and virality assessment." },
+                        { icon: Sparkles, title: "2. AI analyzes it", desc: "The AI reads your post and auto-generates a market title + virality assessment." },
                         { icon: ShieldCheck, title: "3. Risk check", desc: "Our risk engine flags unusual setups before you go live." },
                         { icon: Zap, title: "4. Seed with AVAX", desc: "Place at least 0.01 AVAX to activate the market on-chain." },
                       ].map(({ icon: Icon, title, desc }) => (
@@ -791,15 +782,29 @@ export default function CreateMarketPage() {
                   <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
                     {/* Actual post embed with live stats */}
                     <div className="p-4 pb-3">
-                      <PostEmbed url={embedUrl} />
+                      <PostEmbed url={embedUrl} onData={handleEmbedData} />
                     </div>
 
-                    {/* AI virality assessment (after analyze step) */}
-                    {preview?.viralityAssessment && (
+                    {/* AI title generation status */}
+                    {isGeneratingTitle && (
+                      <div className="mx-4 mb-3">
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-xs text-primary">
+                          <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                          <span>Generating market title with AI…</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Auto-generated title preview */}
+                    {!isGeneratingTitle && autoSuggestedTitle && (
                       <div className="mx-4 mb-3">
                         <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground">
                           <Sparkles className="h-3 w-3 shrink-0 mt-0.5 text-primary" />
-                          <span>{preview.viralityAssessment}</span>
+                          <div>
+                            <p className="text-[10px] text-primary font-semibold uppercase tracking-wider mb-0.5">AI-generated title</p>
+                            <p>{autoSuggestedTitle}</p>
+                            {autoViralityNote && <p className="mt-1 text-muted-foreground">{autoViralityNote}</p>}
+                          </div>
                         </div>
                       </div>
                     )}

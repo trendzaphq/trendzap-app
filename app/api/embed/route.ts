@@ -20,6 +20,24 @@ function extractYouTubeId(url: string): string | null {
   return match ? match[1] : null
 }
 
+/** Extract plain tweet text from the blockquote in Twitter oEmbed HTML */
+function extractTweetText(html: string): string | null {
+  // Twitter oEmbed: <blockquote class="twitter-tweet"><p lang="en" dir="ltr">TEXT</p>&mdash; ...
+  const pMatch = html.match(/<p[^>]*lang="[^"]*"[^>]*>([\s\S]*?)<\/p>/)
+  if (!pMatch) return null
+  // Strip HTML tags and decode common HTML entities
+  return pMatch[1]
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&mdash;/g, "—")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url")
   if (!url) return NextResponse.json({ error: "Missing url" }, { status: 400 })
@@ -46,8 +64,9 @@ export async function GET(req: NextRequest) {
       }
 
       const oEmbed = await oEmbedRes.json()
+      const post_text = extractTweetText(oEmbed.html as string)
 
-      // Optionally fetch live stats via Twitter API v2 (requires TWITTER_BEARER_TOKEN)
+      // Fetch live stats via Twitter API v2 (requires TWITTER_BEARER_TOKEN)
       let stats: Record<string, number> | null = null
       const tweetId = extractTweetId(url)
       const bearer = process.env.TWITTER_BEARER_TOKEN
@@ -71,7 +90,7 @@ export async function GET(req: NextRequest) {
       }
 
       return NextResponse.json(
-        { platform: "x", embed_html: oEmbed.html, author_name: oEmbed.author_name, stats },
+        { platform: "x", embed_html: oEmbed.html, author_name: oEmbed.author_name, post_text, stats },
         { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
       )
     }
@@ -117,6 +136,7 @@ export async function GET(req: NextRequest) {
           author_name: oEmbed.author_name,
           title: oEmbed.title,
           thumbnail_url: oEmbed.thumbnail_url,
+          post_text: oEmbed.title as string | null,
           stats,
         },
         { headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600" } }
@@ -144,6 +164,7 @@ export async function GET(req: NextRequest) {
           author_name: oEmbed.author_name,
           title: oEmbed.title,
           thumbnail_url: oEmbed.thumbnail_url,
+          post_text: oEmbed.title as string | null,
           stats: null,
         },
         { headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600" } }
@@ -155,3 +176,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch embed" }, { status: 502 })
   }
 }
+

@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Futuristic TrendZap theme with neon accents, dark base, and high-contrast crypto-native colors */
+/* TrendZap brand colors — purple primary, cyan secondary, matching trendzap.xyz */
 :root {
   --background: oklch(0.08 0.01 264);
   --foreground: oklch(0.98 0.01 264);
@@ -11,33 +11,33 @@
   --card-foreground: oklch(0.98 0.01 264);
   --popover: oklch(0.1 0.02 264);
   --popover-foreground: oklch(0.98 0.01 264);
-  --primary: oklch(0.75 0.25 155);
-  --primary-foreground: oklch(0.08 0.01 264);
-  --secondary: oklch(0.78 0.22 280);
+  --primary: oklch(0.65 0.25 290);       /* #A855F7 brand purple */
+  --primary-foreground: oklch(0.98 0.01 264);
+  --secondary: oklch(0.72 0.22 195);     /* #38BDF8 brand cyan */
   --secondary-foreground: oklch(0.08 0.01 264);
   --muted: oklch(0.2 0.02 264);
   --muted-foreground: oklch(0.6 0.02 264);
-  --accent: oklch(0.82 0.28 330);
+  --accent: oklch(0.75 0.28 120);        /* #10B981 emerald (accent only) */
   --accent-foreground: oklch(0.08 0.01 264);
   --destructive: oklch(0.65 0.28 20);
   --destructive-foreground: oklch(0.98 0.01 264);
   --border: oklch(0.22 0.03 264);
   --input: oklch(0.18 0.02 264);
-  --ring: oklch(0.75 0.25 155);
-  --chart-1: oklch(0.75 0.25 155);
-  --chart-2: oklch(0.78 0.22 280);
-  --chart-3: oklch(0.82 0.28 330);
-  --chart-4: oklch(0.7 0.26 200);
-  --chart-5: oklch(0.76 0.24 50);
+  --ring: oklch(0.65 0.25 290);          /* purple ring */
+  --chart-1: oklch(0.65 0.25 290);       /* purple */
+  --chart-2: oklch(0.72 0.22 195);       /* cyan */
+  --chart-3: oklch(0.75 0.28 120);       /* emerald */
+  --chart-4: oklch(0.7 0.26 330);        /* pink */
+  --chart-5: oklch(0.76 0.24 50);        /* amber */
   --radius: 0.75rem;
   --sidebar: oklch(0.1 0.02 264);
   --sidebar-foreground: oklch(0.98 0.01 264);
-  --sidebar-primary: oklch(0.75 0.25 155);
-  --sidebar-primary-foreground: oklch(0.08 0.01 264);
+  --sidebar-primary: oklch(0.65 0.25 290);
+  --sidebar-primary-foreground: oklch(0.98 0.01 264);
   --sidebar-accent: oklch(0.18 0.02 264);
   --sidebar-accent-foreground: oklch(0.98 0.01 264);
   --sidebar-border: oklch(0.22 0.03 264);
-  --sidebar-ring: oklch(0.75 0.25 155);
+  --sidebar-ring: oklch(0.65 0.25 290);
 }
 
 .dark {
@@ -47,32 +47,32 @@
   --card-foreground: oklch(0.98 0.01 264);
   --popover: oklch(0.1 0.02 264);
   --popover-foreground: oklch(0.98 0.01 264);
-  --primary: oklch(0.75 0.25 155);
-  --primary-foreground: oklch(0.08 0.01 264);
-  --secondary: oklch(0.78 0.22 280);
+  --primary: oklch(0.65 0.25 290);
+  --primary-foreground: oklch(0.98 0.01 264);
+  --secondary: oklch(0.72 0.22 195);
   --secondary-foreground: oklch(0.08 0.01 264);
   --muted: oklch(0.2 0.02 264);
   --muted-foreground: oklch(0.6 0.02 264);
-  --accent: oklch(0.82 0.28 330);
+  --accent: oklch(0.75 0.28 120);
   --accent-foreground: oklch(0.08 0.01 264);
   --destructive: oklch(0.65 0.28 20);
   --destructive-foreground: oklch(0.98 0.01 264);
   --border: oklch(0.22 0.03 264);
   --input: oklch(0.18 0.02 264);
-  --ring: oklch(0.75 0.25 155);
-  --chart-1: oklch(0.75 0.25 155);
-  --chart-2: oklch(0.78 0.22 280);
-  --chart-3: oklch(0.82 0.28 330);
-  --chart-4: oklch(0.7 0.26 200);
+  --ring: oklch(0.65 0.25 290);
+  --chart-1: oklch(0.65 0.25 290);
+  --chart-2: oklch(0.72 0.22 195);
+  --chart-3: oklch(0.75 0.28 120);
+  --chart-4: oklch(0.7 0.26 330);
   --chart-5: oklch(0.76 0.24 50);
   --sidebar: oklch(0.1 0.02 264);
   --sidebar-foreground: oklch(0.98 0.01 264);
-  --sidebar-primary: oklch(0.75 0.25 155);
-  --sidebar-primary-foreground: oklch(0.08 0.01 264);
+  --sidebar-primary: oklch(0.65 0.25 290);
+  --sidebar-primary-foreground: oklch(0.98 0.01 264);
   --sidebar-accent: oklch(0.18 0.02 264);
   --sidebar-accent-foreground: oklch(0.98 0.01 264);
   --sidebar-border: oklch(0.22 0.03 264);
-  --sidebar-ring: oklch(0.75 0.25 155);
+  --sidebar-ring: oklch(0.65 0.25 290);
 }
 
 @theme inline {
@@ -134,6 +134,17 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  /* TrendZap brand gradient text — purple→cyan */
+  .gradient-text {
+    background: linear-gradient(135deg, oklch(0.65 0.25 290), oklch(0.72 0.22 195));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  /* Brand gradient background */
+  .gradient-brand {
+    background: linear-gradient(135deg, oklch(0.65 0.25 290), oklch(0.72 0.22 195));
+  }
 }
 
 /* Custom animations and effects for futuristic feel */
@@ -194,10 +205,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.75 0.25 155);
+  background: oklch(0.65 0.25 290);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.82 0.28 155);
+  background: oklch(0.72 0.25 290);
 }
