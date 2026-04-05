@@ -40,6 +40,10 @@ const avalancheFuji = {
 export function PrivyClientProvider({ children }: PrivyClientProviderProps) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || ""
 
+  // During Docker build NEXT_PUBLIC_* vars are absent — render children directly
+  // rather than passing an invalid appId to Privy which throws at prerender time
+  if (!appId) return <>{children}</>
+
   return (
     <PrivyProvider
       appId={appId}
