@@ -60,7 +60,12 @@ interface MetricCombo { id: string; metric: string; threshold: string }
 export default function CreateMarketPage() {
   const router = useRouter()
   const { wallets } = useWallets()
-  const { authenticated } = usePrivy()
+  const { ready: privyReady, authenticated, login } = usePrivy()
+
+  // Auth guard — open login modal immediately if unauthenticated
+  useEffect(() => {
+    if (privyReady && !authenticated) login()
+  }, [privyReady, authenticated, login])
 
   const [step, setStep] = useState<Step>("url")
   const [url, setUrl] = useState("")

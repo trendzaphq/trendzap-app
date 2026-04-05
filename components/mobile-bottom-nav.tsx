@@ -11,7 +11,7 @@ import { SearchModal } from "@/components/search-modal"
 export function MobileBottomNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const { authenticated } = usePrivy()
+  const { authenticated, login } = usePrivy()
   const [searchOpen, setSearchOpen] = useState(false)
 
   return (
@@ -43,12 +43,10 @@ export function MobileBottomNav() {
 
           {/* Center Create Button */}
           <button
-            onClick={() => authenticated && router.push("/create")}
+            onClick={() => { if (authenticated) router.push("/create"); else login() }}
             className={cn(
               "flex flex-col items-center justify-center -mt-6 w-14 h-14 rounded-full shadow-lg transition-all",
-              authenticated
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 active:scale-95"
-                : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+              "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 active:scale-95"
             )}
             aria-label="Create Market"
           >
