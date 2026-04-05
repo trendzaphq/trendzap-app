@@ -14,7 +14,7 @@ import { parseEther } from "viem"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
 import {
   Link2, Sparkles, TrendingUp, TrendingDown, Zap, Loader2,
-  CheckCircle2, AlertTriangle, Info, Clock, Eye, ThumbsUp, Share2,
+  CheckCircle2, AlertTriangle, Info, Clock,
   ArrowLeft, ArrowRight, ShieldCheck, ExternalLink
 } from "lucide-react"
 
@@ -36,13 +36,9 @@ type Step = "url" | "details" | "risk" | "bet" | "done"
 
 interface PreviewData {
   platform: string
-  thumbnail: string
-  currentViews: number
-  currentLikes: number
-  currentShares?: number
   suggestedTitle: string
+  viralityAssessment?: string
   postText?: string
-  authorHandle?: string
 }
 
 interface RiskData {
@@ -66,6 +62,7 @@ export default function CreateMarketPage() {
 
   const [step, setStep] = useState<Step>("url")
   const [url, setUrl] = useState("")
+  const [postText, setPostText] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [riskData, setRiskData] = useState<RiskData | null>(null)
@@ -96,35 +93,38 @@ export default function CreateMarketPage() {
     setIsAnalyzing(true)
     setError(null)
     const platform = detectPlatform(url)
-    // Strip tracking params before sending
     const cleanUrl = url.split("?")[0]
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: cleanUrl, platform }),
-      })
-      const data = res.ok ? await res.json() : null
+
+    // If user pasted post text, send it to the AI for a title suggestion
+    if (postText.trim().length > 10) {
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ platform, post_text: postText.trim(), url: cleanUrl }),
+        })
+        const data = res.ok ? await res.json() : null
+        setPreview({
+          platform,
+          suggestedTitle: data?.suggested_title || `Will this ${platform.toUpperCase()} post go viral?`,
+          viralityAssessment: data?.virality_assessment || undefined,
+          postText: postText.trim(),
+        })
+      } catch {
+        setPreview({
+          platform,
+          suggestedTitle: `Will this ${platform.toUpperCase()} post go viral?`,
+          postText: postText.trim(),
+        })
+      }
+    } else {
+      // No post text — just detect platform and proceed
       setPreview({
         platform,
-        thumbnail: data?.thumbnail_url || "",
-        currentViews: data?.current_views ?? data?.views ?? 0,
-        currentLikes: data?.current_likes ?? data?.likes ?? 0,
-        currentShares: data?.current_shares ?? data?.shares ?? 0,
-        suggestedTitle: data?.suggested_title || `Will this ${platform.toUpperCase()} post go viral?`,
-        postText: data?.post_text || data?.caption || "",
-        authorHandle: data?.author_handle || data?.username || "",
-      })
-      if (data?.suggested_threshold) setThreshold(String(data.suggested_threshold))
-    } catch {
-      setPreview({
-        platform,
-        thumbnail: "",
-        currentViews: 0,
-        currentLikes: 0,
         suggestedTitle: `Will this ${platform.toUpperCase()} post go viral?`,
       })
     }
+
     setIsAnalyzing(false)
     setStep("details")
   }
@@ -319,8 +319,23 @@ export default function CreateMarketPage() {
                     />
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Info className="h-3 w-3 shrink-0" />
-                      Supports X (Twitter), TikTok, YouTube, and Instagram. More platforms unlock automatically as we expand.
+                      Supports X (Twitter), soon more platforms will be unlock automatically as we expand.
                     </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="post-text">
+                      Post text{" "}
+                      <span className="text-muted-foreground font-normal">(optional — paste the tweet for AI title suggestion)</span>
+                    </Label>
+                    <Textarea
+                      id="post-text"
+                      placeholder="Paste the post content here for an AI-generated market title…"
+                      rows={3}
+                      className="resize-none text-sm"
+                      value={postText}
+                      onChange={(e) => setPostText(e.target.value)}
+                    />
                   </div>
 
                   <Button
@@ -329,9 +344,11 @@ export default function CreateMarketPage() {
                     disabled={!url.trim() || isAnalyzing}
                   >
                     {isAnalyzing ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" />Analyzing post...</>
-                    ) : (
+                      <><Loader2 className="h-4 w-4 animate-spin" />Analyzing post…</>
+                    ) : postText.trim().length > 10 ? (
                       <><Sparkles className="h-4 w-4" />Analyze &amp; Continue</>
+                    ) : (
+                      <><ArrowRight className="h-4 w-4" />Continue</>
                     )}
                   </Button>
 
@@ -353,12 +370,10 @@ export default function CreateMarketPage() {
                   </div>
 
                   {/* Show soft warning if live stats couldn't be fetched */}
-                  {preview.currentViews === 0 && preview.currentLikes === 0 && (
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/40 border border-border/60 text-xs text-muted-foreground">
-                      <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-400" />
-                      <span>
-                        Live stats couldn't be fetched automatically — set the threshold manually based on the post's current metrics.
-                      </span>
+                  {preview.viralityAssessment && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
+                      <span>{preview.viralityAssessment}</span>
                     </div>
                   )}
 
@@ -409,16 +424,13 @@ export default function CreateMarketPage() {
                   </div>
 
                   {/* Threshold explainer */}
-                  {threshold && preview.currentViews > 0 && (
+                  {threshold && Number(threshold) > 0 && (
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/40 text-xs text-muted-foreground">
                       <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
                       <span>
-                        The post currently has <strong className="text-foreground">{preview.currentViews.toLocaleString()}</strong> {metric}.
-                        Your threshold is <strong className="text-foreground">{Number(threshold).toLocaleString()}</strong> — that's{" "}
-                        <strong className="text-foreground">{(Number(threshold) / Math.max(preview.currentViews, 1)).toFixed(1)}×</strong> current {metric}.{" "}
-                        {Number(threshold) <= preview.currentViews
-                          ? "⚠️ Threshold is already met — consider a higher number."
-                          : "Predictors bet on whether it gets there by the deadline."}
+                        Predictors bet on whether the {METRIC_LABELS[metric] || "metric"} reaches{" "}
+                        <strong className="text-foreground">{Number(threshold).toLocaleString()}</strong> by the deadline.
+                        Set this above the post's current count to make it interesting.
                       </span>
                     </div>
                   )}
@@ -724,8 +736,8 @@ export default function CreateMarketPage() {
                   <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-4">
                     <div className="space-y-3">
                       {[
-                        { icon: Link2, title: "1. Paste a URL", desc: "Drop any public X, TikTok, YouTube, or Instagram post link." },
-                        { icon: Sparkles, title: "2. AI analyzes it", desc: "We fetch live stats and suggest a market question and threshold." },
+                        { icon: Link2, title: "1. Paste a URL", desc: "Drop any public X post link." },
+                        { icon: Sparkles, title: "2. AI analyzes it", desc: "Paste the post text for an AI-generated market title and virality assessment." },
                         { icon: ShieldCheck, title: "3. Risk check", desc: "Our risk engine flags unusual setups before you go live." },
                         { icon: Zap, title: "4. Seed with AVAX", desc: "Place at least 0.01 AVAX to activate the market on-chain." },
                       ].map(({ icon: Icon, title, desc }) => (
@@ -748,49 +760,43 @@ export default function CreateMarketPage() {
                     </div>
                   </div>
                 ) : (
-                  /* Post preview after analysis */
+                  /* Post preview after URL entered */
                   <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
-                    {/* Thumbnail */}
-                    {preview.thumbnail ? (
-                      <div className="relative h-44 overflow-hidden">
-                        <img
-                          src={preview.thumbnail}
-                          alt="Post thumbnail"
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-                        <Badge className={`absolute top-3 left-3 font-bold text-xs text-white border-0 ${
-                          preview.platform === "x" ? "bg-gradient-to-r from-[#1DA1F2] to-[#14171A]" :
-                          preview.platform === "tiktok" ? "bg-gradient-to-r from-[#FF0050] to-[#00F2EA]" :
-                          preview.platform === "youtube" ? "bg-gradient-to-r from-[#FF0000] to-[#FF8800]" :
-                          "bg-gradient-to-r from-[#E1306C] to-[#FCAF45]"
-                        }`}>
-                          {preview.platform.toUpperCase()}
-                        </Badge>
-                      </div>
-                    ) : (
-                      <div className="h-28 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-                        <Badge className="font-bold text-sm">{preview.platform.toUpperCase()}</Badge>
-                      </div>
-                    )}
+                    {/* Platform header */}
+                    <div className="h-20 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center relative">
+                      <Badge className={`font-bold text-sm ${
+                        preview.platform === "x" ? "bg-[#14171A] text-white" :
+                        preview.platform === "tiktok" ? "bg-[#FF0050] text-white" :
+                        preview.platform === "youtube" ? "bg-[#FF0000] text-white" :
+                        "bg-[#E1306C] text-white"
+                      }`}>
+                        {preview.platform === "x" ? "𝕏 (Twitter)" : preview.platform.toUpperCase()}
+                      </Badge>
+                    </div>
 
                     <div className="p-4 space-y-3">
-                      {preview.authorHandle && (
-                        <p className="text-xs text-muted-foreground font-mono">@{preview.authorHandle}</p>
-                      )}
+                      {/* Post text if pasted */}
                       {preview.postText && (
-                        <p className="text-sm text-foreground line-clamp-3 leading-snug">{preview.postText}</p>
+                        <p className="text-sm text-foreground line-clamp-4 leading-snug">{preview.postText}</p>
                       )}
 
-                      {/* Stats */}
-                      <div className="grid grid-cols-3 gap-2 pt-1">
-                        <StatBubble icon={Eye} label="Views" value={preview.currentViews} />
-                        <StatBubble icon={ThumbsUp} label="Likes" value={preview.currentLikes} />
-                        <StatBubble icon={Share2} label="Shares" value={preview.currentShares || 0} />
-                      </div>
+                      {/* AI virality assessment */}
+                      {preview.viralityAssessment && (
+                        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground">
+                          <Sparkles className="h-3 w-3 shrink-0 mt-0.5 text-primary" />
+                          <span>{preview.viralityAssessment}</span>
+                        </div>
+                      )}
 
-                      {/* Market preview if details filled */}
-                      {threshold && customTitle || (threshold && preview.suggestedTitle) ? (
+                      {/* Hint if no post text */}
+                      {!preview.postText && (
+                        <p className="text-xs text-muted-foreground italic">
+                          Tip: paste the post text in step 1 for an AI-generated title.
+                        </p>
+                      )}
+
+                      {/* Market structure preview once threshold is set */}
+                      {threshold && Number(threshold) > 0 ? (
                         <div className="mt-2 pt-3 border-t border-border/40 space-y-1.5">
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Market preview</p>
                           <p className="text-xs font-medium line-clamp-2">{customTitle || preview.suggestedTitle}</p>
@@ -805,7 +811,11 @@ export default function CreateMarketPage() {
                             ≥ {Number(threshold).toLocaleString()} {METRIC_LABELS[metric]} in {DEADLINES.find(d => d.value === deadline)?.label}
                           </p>
                         </div>
-                      ) : null}
+                      ) : (
+                        <div className="pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                          Enter a threshold in the next step to preview the market structure.
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -817,20 +827,4 @@ export default function CreateMarketPage() {
       </main>
     </div>
   )
-}
-
-function StatBubble({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: number }) {
-  return (
-    <div className="flex flex-col items-center py-2 rounded-lg bg-muted/30 border border-border/40">
-      <Icon className="h-3 w-3 text-muted-foreground mb-1" />
-      <span className="text-xs font-mono font-semibold">{value > 0 ? formatNum(value) : "—"}</span>
-      <span className="text-[10px] text-muted-foreground">{label}</span>
-    </div>
-  )
-}
-
-function formatNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
 }
