@@ -96,12 +96,13 @@ export default function CreateMarketPage() {
     setIsAnalyzing(true)
     setError(null)
     const platform = detectPlatform(url)
+    // Strip tracking params before sending
+    const cleanUrl = url.split("?")[0]
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_INTELLIGENCE_URL}/analyze/trend`, {
+      const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, platform }),
-        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({ url: cleanUrl, platform }),
       })
       const data = res.ok ? await res.json() : null
       setPreview({
@@ -350,6 +351,16 @@ export default function CreateMarketPage() {
                     <h2 className="text-lg font-semibold">Market Details</h2>
                     <p className="text-sm text-muted-foreground">Define exactly what people are predicting.</p>
                   </div>
+
+                  {/* Show soft warning if live stats couldn't be fetched */}
+                  {preview.currentViews === 0 && preview.currentLikes === 0 && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/40 border border-border/60 text-xs text-muted-foreground">
+                      <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-400" />
+                      <span>
+                        Live stats couldn't be fetched automatically — set the threshold manually based on the post's current metrics.
+                      </span>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="title">Market Question <span className="text-muted-foreground font-normal">(optional)</span></Label>
