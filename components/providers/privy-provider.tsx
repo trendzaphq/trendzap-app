@@ -38,7 +38,7 @@ const avalancheFuji = {
 }
 
 export function PrivyClientProvider({ children }: PrivyClientProviderProps) {
-  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "demo-app-id"
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || ""
 
   return (
     <PrivyProvider

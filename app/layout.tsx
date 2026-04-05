@@ -10,6 +10,9 @@ import "./globals.css"
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
+// Force server-rendering on all routes — prevents build-time crash when NEXT_PUBLIC_* vars are absent
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: "TrendZap - Bet on Viral Content",
   description: "The 8-second real-money prediction market for social content. Zap it before it pops.",
