@@ -109,10 +109,10 @@ export function TrendingSidebar() {
       )}
 
       {/* New market CTA */}
-      <div className="mt-2 p-3 rounded-xl bg-primary/5 border border-primary/15 text-center">
-        <p className="text-xs text-muted-foreground mb-2">See a trend blowing up?</p>
+      <Link href="/create" className="block mt-2 p-3 rounded-xl bg-primary/5 border border-primary/15 text-center hover:bg-primary/10 transition-colors">
+        <p className="text-xs text-muted-foreground mb-1">See a trend blowing up?</p>
         <p className="text-xs font-semibold text-primary">Create a market →</p>
-      </div>
+      </Link>
     </aside>
   )
 }

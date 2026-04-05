@@ -1,18 +1,8 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import {
-  Flame,
-  Clock,
-  TrendingUp,
-  Zap,
-  LayoutGrid,
-  Tv2,
-  Youtube,
-  Twitter,
-  Instagram,
-} from "lucide-react"
+import { Flame, Clock, TrendingUp, Zap, LayoutGrid, Tv2, Youtube, Twitter, Instagram } from "lucide-react"
+import { getEnabledPlatforms } from "@/lib/platforms"
 
 interface MarketFiltersSidebarProps {
   activePlatform: string
@@ -27,16 +17,16 @@ const SORT_OPTIONS = [
   { value: "hot", label: "Hot", icon: Flame },
 ]
 
-const PLATFORMS = [
-  { value: "", label: "All Platforms", icon: LayoutGrid },
-  { value: "x", label: "X / Twitter", icon: Twitter },
-  { value: "tiktok", label: "TikTok", icon: Tv2 },
-  { value: "youtube", label: "YouTube", icon: Youtube },
-  { value: "instagram", label: "Instagram", icon: Instagram },
-]
+const PLATFORM_ICONS: Record<string, React.ElementType> = {
+  x: Twitter,
+  tiktok: Tv2,
+  youtube: Youtube,
+  instagram: Instagram,
+}
 
 export function MarketFiltersSidebar({ activePlatform, sortBy, onSortChange }: MarketFiltersSidebarProps) {
   const router = useRouter()
+  const enabledPlatforms = getEnabledPlatforms()
 
   const setPlatform = (p: string) => {
     router.push(p ? `/?platform=${p}` : "/")
@@ -67,26 +57,42 @@ export function MarketFiltersSidebar({ activePlatform, sortBy, onSortChange }: M
 
       <div className="h-px bg-border/60" />
 
-      {/* Platforms */}
+      {/* Platforms — only enabled ones */}
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2 px-1">
           Platform
         </p>
         <div className="space-y-0.5">
-          {PLATFORMS.map(({ value, label, icon: Icon }) => (
-            <button
-              key={value}
-              onClick={() => setPlatform(value)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activePlatform === value
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
-            </button>
-          ))}
+          {/* All */}
+          <button
+            onClick={() => setPlatform("")}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activePlatform === ""
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            }`}
+          >
+            <LayoutGrid className="h-4 w-4 shrink-0" />
+            All Markets
+          </button>
+
+          {enabledPlatforms.map((p) => {
+            const Icon = PLATFORM_ICONS[p.id] || Twitter
+            return (
+              <button
+                key={p.id}
+                onClick={() => setPlatform(p.id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activePlatform === p.id
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {p.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 

@@ -15,9 +15,9 @@ import {
   Settings,
   LogOut,
   BarChart3,
-  Bell,
   ShieldCheck,
   Plus,
+  TrendingUp,
 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import {
@@ -28,12 +28,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { CreateMarketDialog } from "@/components/create-market-dialog"
+import { NotificationsBell } from "@/components/notifications-bell"
 
 export function Navigation() {
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [createMarketOpen, setCreateMarketOpen] = useState(false)
   const { ready, authenticated, user, logout } = usePrivy()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<{ market_id: number; title: string | null; thumbnail_url: string | null; creator_address: string | null }[]>([])
@@ -127,14 +126,7 @@ export function Navigation() {
               </Link>
             </Button>
 
-            {authenticated && (
-              <Button size="sm" variant="ghost" className="relative text-muted-foreground hover:text-primary">
-                <Bell className="h-4 w-4" />
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-accent text-[10px] font-bold flex items-center justify-center text-accent-foreground">
-                  3
-                </span>
-              </Button>
-            )}
+            {authenticated && <NotificationsBell />}
 
             <WalletButton />
 
@@ -159,12 +151,11 @@ export function Navigation() {
                     </span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setCreateMarketOpen(true)}
-                    className="cursor-pointer gap-2 flex text-primary focus:text-primary font-semibold"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Create Market
+                  <DropdownMenuItem asChild>
+                    <Link href="/create" className="cursor-pointer gap-2 flex text-primary focus:text-primary font-semibold">
+                      <Plus className="h-4 w-4" />
+                      Create Market
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -218,11 +209,6 @@ export function Navigation() {
 
       </header>
 
-      {/* Create Market Dialog (controlled from dropdown) */}
-      {authenticated && (
-        <CreateMarketDialog open={createMarketOpen} onOpenChange={setCreateMarketOpen} />
-      )}
-
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 top-16 z-40 bg-background/95 backdrop-blur-xl lg:hidden animate-slide-up">
@@ -249,10 +235,12 @@ export function Navigation() {
                   <Button
                     size="lg"
                     className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 font-semibold"
-                    onClick={() => { setMobileMenuOpen(false); setCreateMarketOpen(true) }}
+                    asChild
                   >
-                    <Plus className="h-5 w-5" />
-                    Create Market
+                    <Link href="/create" onClick={() => setMobileMenuOpen(false)}>
+                      <Plus className="h-5 w-5" />
+                      Create Market
+                    </Link>
                   </Button>
                   <Button size="lg" variant="ghost" className="w-full justify-start gap-2" asChild>
                     <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>

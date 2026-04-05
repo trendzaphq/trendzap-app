@@ -15,8 +15,11 @@ import {
   Shield,
   ExternalLink,
   Copy,
+  FileText,
+  ChevronRight,
 } from "lucide-react"
 import { usePrivy, useWallets } from "@privy-io/react-auth"
+import Link from "next/link"
 
 export default function SettingsPage() {
   return (
@@ -59,11 +62,12 @@ export default function SettingsPage() {
             <div className="lg:col-span-3">
               {/* Mobile: Tabs */}
               <Tabs defaultValue="account" className="lg:hidden">
-                <TabsList className="grid w-full grid-cols-4 mb-6">
+                <TabsList className="grid w-full grid-cols-5 mb-6">
                   <TabsTrigger value="account">Account</TabsTrigger>
                   <TabsTrigger value="security">Security</TabsTrigger>
                   <TabsTrigger value="notifications">Alerts</TabsTrigger>
                   <TabsTrigger value="wallet">Wallet</TabsTrigger>
+                  <TabsTrigger value="legal">Legal</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="account" className="space-y-6">
@@ -78,6 +82,9 @@ export default function SettingsPage() {
                 <TabsContent value="wallet" className="space-y-6">
                   <WalletSettings />
                 </TabsContent>
+                <TabsContent value="legal" className="space-y-6">
+                  <LegalSection />
+                </TabsContent>
               </Tabs>
 
               {/* Desktop: Show all sections */}
@@ -86,6 +93,7 @@ export default function SettingsPage() {
                 <SecuritySettings />
                 <NotificationSettings />
                 <WalletSettings />
+                <LegalSection />
               </div>
             </div>
           </div>
@@ -224,6 +232,46 @@ function WalletSettings() {
           ) : (
             <p className="text-sm text-muted-foreground">No wallet connected</p>
           )}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function LegalSection() {
+  return (
+    <Card className="p-6">
+      <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+        <FileText className="h-5 w-5 text-primary" />
+        Legal
+      </h2>
+      <div className="space-y-2">
+        {[
+          { label: "Terms of Service", href: "/terms", desc: "Rules for using TrendZap, market creation, and payouts" },
+          { label: "Privacy Policy", href: "/privacy", desc: "How we collect, use, and protect your data" },
+        ].map(({ label, href, desc }) => (
+          <Link
+            key={href}
+            href={href}
+            target="_blank"
+            className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group"
+          >
+            <div>
+              <p className="text-sm font-medium">{label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </Link>
+        ))}
+
+        <div className="pt-4 mt-4 border-t border-border/40">
+          <p className="text-xs text-muted-foreground">
+            TrendZap v1.0 — Avalanche Mainnet — By using this platform you agree to the Terms of Service.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Questions? Contact us at{" "}
+            <a href="mailto:support@trendzap.xyz" className="text-primary underline">support@trendzap.xyz</a>
+          </p>
         </div>
       </div>
     </Card>
