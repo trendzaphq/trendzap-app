@@ -1,0 +1,157 @@
+import { NextRequest, NextResponse } from "next/server"
+
+export const runtime = "edge"
+
+function detectPlatform(url: string) {
+  if (url.includes("twitter.com") || url.includes("x.com")) return "x"
+  if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube"
+  if (url.includes("tiktok.com")) return "tiktok"
+  if (url.includes("instagram.com")) return "instagram"
+  return "unknown"
+}
+
+function extractTweetId(url: string): string | null {
+  const match = url.match(/\/status\/(\d+)/)
+  return match ? match[1] : null
+}
+
+function extractYouTubeId(url: string): string | null {
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  return match ? match[1] : null
+}
+
+export async function GET(req: NextRequest) {
+  const url = req.nextUrl.searchParams.get("url")
+  if (!url) return NextResponse.json({ error: "Missing url" }, { status: 400 })
+
+  const platform = detectPlatform(url)
+
+  try {
+    // ─── X / Twitter ─────────────────────────────────────────────────────────
+    if (platform === "x") {
+      const oEmbedUrl =
+        `https://publish.twitter.com/oembed` +
+        `?url=${encodeURIComponent(url)}&theme=dark&dnt=true&omit_script=false`
+
+      const oEmbedRes = await fetch(oEmbedUrl, {
+        headers: { "User-Agent": "TrendZap/1.0" },
+        signal: AbortSignal.timeout(8000),
+      })
+
+      if (!oEmbedRes.ok) {
+        return NextResponse.json(
+          { error: "Tweet not found or account is private" },
+          { status: 404 }
+        )
+      }
+
+      const oEmbed = await oEmbedRes.json()
+
+      // Optionally fetch live stats via Twitter API v2 (requires TWITTER_BEARER_TOKEN)
+      let stats: Record<string, number> | null = null
+      const tweetId = extractTweetId(url)
+      const bearer = process.env.TWITTER_BEARER_TOKEN
+
+      if (tweetId && bearer) {
+        try {
+          const statsRes = await fetch(
+            `https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=public_metrics`,
+            {
+              headers: { Authorization: `Bearer ${bearer}` },
+              signal: AbortSignal.timeout(5000),
+            }
+          )
+          if (statsRes.ok) {
+            const statsJson = await statsRes.json()
+            stats = statsJson.data?.public_metrics ?? null
+          }
+        } catch {
+          // Bearer token invalid or rate-limit — embed still renders fine
+        }
+      }
+
+      return NextResponse.json(
+        { platform: "x", embed_html: oEmbed.html, author_name: oEmbed.author_name, stats },
+        { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
+      )
+    }
+
+    // ─── YouTube ─────────────────────────────────────────────────────────────
+    if (platform === "youtube") {
+      const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
+      const oEmbedRes = await fetch(oEmbedUrl, { signal: AbortSignal.timeout(8000) })
+
+      if (!oEmbedRes.ok) {
+        return NextResponse.json({ error: "YouTube video not found or private" }, { status: 404 })
+      }
+
+      const oEmbed = await oEmbedRes.json()
+
+      let stats: Record<string, number> | null = null
+      const videoId = extractYouTubeId(url)
+      const ytKey = process.env.YOUTUBE_API_KEY
+
+      if (videoId && ytKey) {
+        try {
+          const statsRes = await fetch(
+            `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${ytKey}`,
+            { signal: AbortSignal.timeout(5000) }
+          )
+          if (statsRes.ok) {
+            const s = (await statsRes.json()).items?.[0]?.statistics
+            if (s) {
+              stats = {
+                view_count: parseInt(s.viewCount || "0"),
+                like_count: parseInt(s.likeCount || "0"),
+                comment_count: parseInt(s.commentCount || "0"),
+              }
+            }
+          }
+        } catch { /* no stats */ }
+      }
+
+      return NextResponse.json(
+        {
+          platform: "youtube",
+          embed_html: oEmbed.html,
+          author_name: oEmbed.author_name,
+          title: oEmbed.title,
+          thumbnail_url: oEmbed.thumbnail_url,
+          stats,
+        },
+        { headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600" } }
+      )
+    }
+
+    // ─── TikTok ───────────────────────────────────────────────────────────────
+    if (platform === "tiktok") {
+      const oEmbedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`
+      const oEmbedRes = await fetch(oEmbedUrl, {
+        headers: { "User-Agent": "TrendZap/1.0" },
+        signal: AbortSignal.timeout(8000),
+      })
+
+      if (!oEmbedRes.ok) {
+        return NextResponse.json({ error: "TikTok video not found or private" }, { status: 404 })
+      }
+
+      const oEmbed = await oEmbedRes.json()
+
+      return NextResponse.json(
+        {
+          platform: "tiktok",
+          embed_html: oEmbed.html,
+          author_name: oEmbed.author_name,
+          title: oEmbed.title,
+          thumbnail_url: oEmbed.thumbnail_url,
+          stats: null,
+        },
+        { headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600" } }
+      )
+    }
+
+    return NextResponse.json({ error: "Unsupported platform" }, { status: 400 })
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch embed" }, { status: 502 })
+  }
+}

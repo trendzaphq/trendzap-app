@@ -27,6 +27,7 @@ import { EXPLORER_URL } from "@/lib/contracts"
 import { OddsChart } from "@/components/odds-chart"
 import { ShareToX } from "@/components/share-to-x"
 import { BetConfirmModal } from "@/components/bet-confirm-modal"
+import { PostEmbed } from "@/components/post-embed"
 
 interface MarketDetailViewProps {
   marketId: string
@@ -152,54 +153,52 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Content Preview */}
+      {/* Content Preview — actual post embed */}
       <Card className="overflow-hidden">
-        <div className="relative h-96">
-          <img src={market.thumbnail || "/placeholder.svg"} alt={market.title} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-
+        {/* Header row: platform badge + external link */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
           <Badge
-            className={`absolute top-4 left-4 bg-gradient-to-r ${
-              {
+            className={`bg-gradient-to-r ${
+              ({
                 tiktok: "from-[#FF0050] to-[#00F2EA]",
                 youtube: "from-[#FF0000] to-[#FF8800]",
                 x: "from-[#1DA1F2] to-[#14171A]",
                 instagram: "from-[#E1306C] to-[#FCAF45]",
-              }[market.platform as string] ?? "from-primary to-secondary"
+              } as Record<string, string>)[market.platform] ?? "from-primary to-secondary"
             } text-white border-0 font-semibold`}
           >
             {market.platform.toUpperCase()}
           </Badge>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="absolute top-4 right-4 gap-2 bg-background/80 backdrop-blur-sm"
-            asChild
-          >
+          <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" asChild>
             <a href={market.sourceUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" />
-              {"View Original"}
+              <ExternalLink className="h-3.5 w-3.5" />
+              View Original
             </a>
           </Button>
+        </div>
 
-          <div className="absolute bottom-6 left-6 right-6">
-            <h1 className="text-2xl font-bold mb-3 text-foreground drop-shadow-lg">{market.title}</h1>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1 text-foreground">
-                <Clock className="h-4 w-4 text-accent" />
-                <span className="font-mono drop-shadow">{market.endsIn}</span>
-              </div>
-              <div className="flex items-center gap-1 text-foreground">
-                <Users className="h-4 w-4 text-secondary" />
-                <span className="drop-shadow">{market.totalBets} bets</span>
-              </div>
-              <div className="flex items-center gap-1 text-foreground">
-                <DollarSign className="h-4 w-4 text-primary" />
-                <span className="font-mono drop-shadow">
-                  {isLive ? `${parseFloat(market.totalVolume).toFixed(3)} AVAX` : `$${totalPool.toLocaleString()}`}
-                </span>
-              </div>
+        {/* Live post embed with real-time stats */}
+        <div className="p-4">
+          <PostEmbed url={market.sourceUrl} />
+        </div>
+
+        {/* Market title + meta row */}
+        <div className="px-4 pb-4 pt-0 border-t border-border/40 space-y-2 mt-1">
+          <h1 className="text-xl font-bold leading-snug">{market.title}</h1>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4 text-accent" />
+              <span className="font-mono">{market.endsIn}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Users className="h-4 w-4 text-secondary" />
+              <span>{market.totalBets} bets</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <DollarSign className="h-4 w-4 text-primary" />
+              <span className="font-mono">
+                {isLive ? `${parseFloat(market.totalVolume).toFixed(3)} AVAX` : `$${totalPool.toLocaleString()}`}
+              </span>
             </div>
           </div>
         </div>

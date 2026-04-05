@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { useWallets, usePrivy } from "@privy-io/react-auth"
 import { parseEther } from "viem"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
@@ -17,6 +16,7 @@ import {
   CheckCircle2, AlertTriangle, Info, Clock,
   ArrowLeft, ArrowRight, ShieldCheck, ExternalLink
 } from "lucide-react"
+import { PostEmbed } from "@/components/post-embed"
 
 const PLATFORM_MAP: Record<string, number> = { twitter: 0, x: 0, youtube: 1, tiktok: 2, instagram: 3 }
 const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
@@ -81,6 +81,33 @@ export default function CreateMarketPage() {
   const [txHash, setTxHash] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Live embed — set after URL debounce (800ms) when it looks like a valid post URL
+  const [embedUrl, setEmbedUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    const isValidPostUrl = (u: string) => {
+      try {
+        const parsed = new URL(u)
+        return (
+          parsed.protocol === "https:" &&
+          (u.includes("twitter.com") ||
+            u.includes("x.com") ||
+            u.includes("youtube.com") ||
+            u.includes("youtu.be") ||
+            u.includes("tiktok.com"))
+        )
+      } catch {
+        return false
+      }
+    }
+    if (!url.trim() || !isValidPostUrl(url.trim())) {
+      setEmbedUrl(null)
+      return
+    }
+    const timer = setTimeout(() => setEmbedUrl(url.trim()), 800)
+    return () => clearTimeout(timer)
+  }, [url])
+
   const detectPlatform = (u: string): string => {
     if (u.includes("twitter.com") || u.includes("x.com")) return "x"
     if (u.includes("youtube.com") || u.includes("youtu.be")) return "youtube"
@@ -141,7 +168,7 @@ export default function CreateMarketPage() {
           platform: preview?.platform,
           metric,
           threshold: Number(threshold),
-          current_value: metric === "likes" ? preview?.currentLikes : preview?.currentViews,
+          current_value: 0,
         }),
         signal: AbortSignal.timeout(8000),
       })
@@ -225,7 +252,7 @@ export default function CreateMarketPage() {
             market_id: marketId,
             title: customTitle || preview.suggestedTitle,
             description: null,
-            thumbnail_url: preview.thumbnail || null,
+            thumbnail_url: null,
             creator_address: await signer.getAddress(),
           }),
         })
@@ -728,10 +755,10 @@ export default function CreateMarketPage() {
             <div className="lg:col-span-2">
               <div className="sticky top-24">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3 px-1">
-                  {preview ? "Post Preview" : "How it works"}
+                  {embedUrl ? "Live Post Preview" : "How it works"}
                 </p>
 
-                {!preview ? (
+                {!embedUrl ? (
                   /* How it works explainer */
                   <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-4">
                     <div className="space-y-3">
@@ -760,63 +787,48 @@ export default function CreateMarketPage() {
                     </div>
                   </div>
                 ) : (
-                  /* Post preview after URL entered */
+                  /* Live post embed + market preview */
                   <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
-                    {/* Platform header */}
-                    <div className="h-20 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center relative">
-                      <Badge className={`font-bold text-sm ${
-                        preview.platform === "x" ? "bg-[#14171A] text-white" :
-                        preview.platform === "tiktok" ? "bg-[#FF0050] text-white" :
-                        preview.platform === "youtube" ? "bg-[#FF0000] text-white" :
-                        "bg-[#E1306C] text-white"
-                      }`}>
-                        {preview.platform === "x" ? "𝕏 (Twitter)" : preview.platform.toUpperCase()}
-                      </Badge>
+                    {/* Actual post embed with live stats */}
+                    <div className="p-4 pb-3">
+                      <PostEmbed url={embedUrl} />
                     </div>
 
-                    <div className="p-4 space-y-3">
-                      {/* Post text if pasted */}
-                      {preview.postText && (
-                        <p className="text-sm text-foreground line-clamp-4 leading-snug">{preview.postText}</p>
-                      )}
-
-                      {/* AI virality assessment */}
-                      {preview.viralityAssessment && (
+                    {/* AI virality assessment (after analyze step) */}
+                    {preview?.viralityAssessment && (
+                      <div className="mx-4 mb-3">
                         <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-xs text-foreground">
                           <Sparkles className="h-3 w-3 shrink-0 mt-0.5 text-primary" />
                           <span>{preview.viralityAssessment}</span>
                         </div>
-                      )}
+                      </div>
+                    )}
 
-                      {/* Hint if no post text */}
-                      {!preview.postText && (
-                        <p className="text-xs text-muted-foreground italic">
-                          Tip: paste the post text in step 1 for an AI-generated title.
-                        </p>
-                      )}
-
-                      {/* Market structure preview once threshold is set */}
-                      {threshold && Number(threshold) > 0 ? (
-                        <div className="mt-2 pt-3 border-t border-border/40 space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Market preview</p>
-                          <p className="text-xs font-medium line-clamp-2">{customTitle || preview.suggestedTitle}</p>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden flex">
-                              <div className="bg-primary w-1/2 h-full" />
-                              <div className="bg-destructive w-1/2 h-full" />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">50 / 50</span>
+                    {/* Market structure preview once threshold is set */}
+                    {threshold && Number(threshold) > 0 && preview ? (
+                      <div className="p-4 pt-0 border-t border-border/40 space-y-2 mt-1">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Market preview</p>
+                        <p className="text-xs font-medium line-clamp-2">{customTitle || preview.suggestedTitle}</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden flex">
+                            <div className="bg-primary w-1/2 h-full" />
+                            <div className="bg-destructive w-1/2 h-full" />
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            ≥ {Number(threshold).toLocaleString()} {METRIC_LABELS[metric]} in {DEADLINES.find(d => d.value === deadline)?.label}
-                          </p>
+                          <span className="text-[10px] text-muted-foreground">50 / 50</span>
                         </div>
-                      ) : (
-                        <div className="pt-2 border-t border-border/40 text-xs text-muted-foreground">
-                          Enter a threshold in the next step to preview the market structure.
-                        </div>
-                      )}
-                    </div>
+                        <p className="text-xs text-muted-foreground">
+                          ≥ {Number(threshold).toLocaleString()} {METRIC_LABELS[metric]} in {DEADLINES.find(d => d.value === deadline)?.label}
+                        </p>
+                      </div>
+                    ) : !preview ? (
+                      <div className="px-4 pb-4 text-xs text-muted-foreground italic">
+                        Click Continue to proceed and set your market parameters.
+                      </div>
+                    ) : (
+                      <div className="px-4 pb-4 text-xs text-muted-foreground">
+                        Enter a threshold in the next step to preview the market structure.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
