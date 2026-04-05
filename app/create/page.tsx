@@ -346,7 +346,7 @@ export default function CreateMarketPage() {
                     />
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Info className="h-3 w-3 shrink-0" />
-                      Supports X (Twitter), soon more platforms will be unlock automatically as we expand.
+                      Supports X (Twitter) and YouTube — more platforms unlocking soon.
                     </p>
                   </div>
 
@@ -763,7 +763,7 @@ export default function CreateMarketPage() {
                   <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-4">
                     <div className="space-y-3">
                       {[
-                        { icon: Link2, title: "1. Paste a URL", desc: "Drop any public X post link." },
+                        { icon: Link2, title: "1. Paste a URL", desc: "Drop any public X (Twitter) or YouTube post link." },
                         { icon: Sparkles, title: "2. AI analyzes it", desc: "Paste the post text for an AI-generated market title and virality assessment." },
                         { icon: ShieldCheck, title: "3. Risk check", desc: "Our risk engine flags unusual setups before you go live." },
                         { icon: Zap, title: "4. Seed with AVAX", desc: "Place at least 0.01 AVAX to activate the market on-chain." },
