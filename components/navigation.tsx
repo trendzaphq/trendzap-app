@@ -36,6 +36,13 @@ export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { ready, authenticated, user, logout, login } = usePrivy()
   const { wallets } = useWallets()
+  const [privyTimedOut, setPrivyTimedOut] = useState(false)
+  useEffect(() => {
+    if (ready) return
+    const t = setTimeout(() => setPrivyTimedOut(true), 3000)
+    return () => clearTimeout(t)
+  }, [ready])
+  const privyReady = ready || privyTimedOut
   const navAddress = wallets[0]?.address ?? ""
   const navInitials = (user?.email?.address?.charAt(0) || navAddress.charAt(2) || "U").toUpperCase()
   const [searchQuery, setSearchQuery] = useState("")
@@ -138,7 +145,7 @@ export function Navigation() {
             </div>
 
             {/* Mobile: compact connect button for unauthenticated */}
-            {ready && !authenticated && (
+            {privyReady && !authenticated && (
               <Button
                 size="sm"
                 onClick={login}
@@ -148,7 +155,7 @@ export function Navigation() {
               </Button>
             )}
 
-            {ready && authenticated && (
+            {privyReady && authenticated && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
