@@ -42,10 +42,10 @@ export const ALL_PLATFORMS: PlatformConfig[] = [
   },
 ]
 
-// Returns only platforms that are currently enabled via env var.
-// Set NEXT_PUBLIC_ENABLED_PLATFORMS=x,tiktok,youtube,instagram to enable multiple.
+// Default: "x,youtube" — both are fully integrated with API keys configured.
+// Add more to NEXT_PUBLIC_ENABLED_PLATFORMS when TikTok/Instagram are ready.
 export function getEnabledPlatforms(): PlatformConfig[] {
-  const envList = process.env.NEXT_PUBLIC_ENABLED_PLATFORMS || "x"
+  const envList = process.env.NEXT_PUBLIC_ENABLED_PLATFORMS || "x,youtube"
   const enabled = new Set(envList.split(",").map((s) => s.trim().toLowerCase()))
   return ALL_PLATFORMS.filter((p) => enabled.has(p.id))
 }
