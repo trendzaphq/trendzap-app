@@ -1,7 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
-import { Analytics } from "@vercel/analytics/next"
 import { PrivyClientProvider } from "@/components/providers/privy-provider"
 import { CreateMarketFab } from "@/components/create-market-fab"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
@@ -48,7 +47,6 @@ export default function RootLayout({
           <CreateMarketFab />
           <MobileBottomNav />
         </PrivyClientProvider>
-        <Analytics />
       </body>
     </html>
   )
