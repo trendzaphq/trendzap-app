@@ -25,6 +25,13 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
   const { wallets } = useWallets()
   const [copied, setCopied] = useState(false)
   const [balance, setBalance] = useState<string | null>(null)
+  // Fallback: if Privy hasn't become ready in 3s, stop showing the spinner
+  const [privyTimedOut, setPrivyTimedOut] = useState(false)
+  useEffect(() => {
+    if (ready) return
+    const t = setTimeout(() => setPrivyTimedOut(true), 3000)
+    return () => clearTimeout(t)
+  }, [ready])
 
   const activeWallet = wallets[0]
   const address = activeWallet?.address || user?.wallet?.address
@@ -69,8 +76,8 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
     }
   }
 
-  // Not ready yet
-  if (!ready) {
+  // Not ready yet (max 3s spinner)
+  if (!ready && !privyTimedOut) {
     return (
       <Button size="sm" variant="outline" disabled className="gap-2 bg-transparent">
         <Loader2 className="h-4 w-4 animate-spin" />
