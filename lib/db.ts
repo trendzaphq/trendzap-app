@@ -1,6 +1,14 @@
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+// Lazy init — avoids crashing at build time when DATABASE_URL is not set
+let _db: ReturnType<typeof neon> | undefined
+const sql = (...args: Parameters<ReturnType<typeof neon>>) => {
+  if (!_db) {
+    if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured")
+    _db = neon(process.env.DATABASE_URL)
+  }
+  return _db(...args)
+}
 
 // Create table if needed — runs at cold start (idempotent)
 export async function ensureSchema() {

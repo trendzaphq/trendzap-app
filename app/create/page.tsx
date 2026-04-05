@@ -90,25 +90,17 @@ export default function CreateMarketPage() {
   const [creatingStep, setCreatingStep] = useState(0) // which combo is being created
   const [txHashes, setTxHashes] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [urlError, setUrlError] = useState<string | null>(null)
 
   // Live embed — set after URL debounce (800ms) when it looks like a valid post URL
   const [embedUrl, setEmbedUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const isValidPostUrl = (u: string) => {
-      try {
-        const parsed = new URL(u)
-        return (
-          parsed.protocol === "https:" &&
-          (u.includes("twitter.com") ||
-            u.includes("x.com") ||
-            u.includes("youtube.com") ||
-            u.includes("youtu.be") ||
-            u.includes("tiktok.com"))
-        )
-      } catch {
-        return false
-      }
+      return (
+        /^https?:\/\/(www\.)?(twitter\.com|x\.com|mobile\.twitter\.com)\/\w+\/status\/\d+/.test(u) ||
+        /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be)/.test(u)
+      )
     }
     // Reset auto-title when URL changes
     setAutoSuggestedTitle("")
@@ -120,6 +112,16 @@ export default function CreateMarketPage() {
     const timer = setTimeout(() => setEmbedUrl(url.trim()), 800)
     return () => clearTimeout(timer)
   }, [url])
+
+  const getUrlError = (u: string): string | null => {
+    if (!u.trim()) return null
+    const isX = /^https?:\/\/(www\.)?(twitter\.com|x\.com|mobile\.twitter\.com)\/\w+\/status\/\d+/.test(u)
+    const isYouTube = /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be)/.test(u)
+    if (isX || isYouTube) return null
+    if (u.includes("tiktok.com") || u.includes("instagram.com"))
+      return "TikTok and Instagram are not yet supported. Please use an X (Twitter) or YouTube URL."
+    return "Please paste a valid X (Twitter) post URL or YouTube video URL."
+  }
 
   const detectPlatform = (u: string): string => {
     if (u.includes("twitter.com") || u.includes("x.com")) return "x"
@@ -179,6 +181,8 @@ export default function CreateMarketPage() {
   }, [autoSuggestedTitle])
 
   const analyzeUrl = async () => {
+    const validationError = getUrlError(url)
+    if (validationError) { setUrlError(validationError); return }
     setIsAnalyzing(true)
     setError(null)
     const platform = detectPlatform(url)
@@ -372,23 +376,30 @@ export default function CreateMarketPage() {
                     <Label htmlFor="url">Post URL</Label>
                     <Input
                       id="url"
-                      placeholder="https://x.com/user/status/..."
+                      placeholder="https://x.com/user/status/... or https://youtube.com/watch?v=..."
                       value={url}
-                      onChange={(e) => setUrl(e.target.value)}
+                      onChange={(e) => { setUrl(e.target.value); setUrlError(getUrlError(e.target.value)) }}
                       onKeyDown={(e) => e.key === "Enter" && url && analyzeUrl()}
-                      className="h-11 text-base"
+                      className={`h-11 text-base ${urlError ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       autoFocus
                     />
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Info className="h-3 w-3 shrink-0" />
-                      Supports X (Twitter) and YouTube — more platforms unlocking soon.
-                    </p>
+                    {urlError ? (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        {urlError}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Info className="h-3 w-3 shrink-0" />
+                        Supports X (Twitter) and YouTube — more platforms unlocking soon.
+                      </p>
+                    )}
                   </div>
 
                   <Button
                     className="w-full h-11 gap-2 font-semibold"
                     onClick={analyzeUrl}
-                    disabled={!url.trim() || isAnalyzing || isGeneratingTitle || followerBlocked}
+                    disabled={!url.trim() || !!urlError || isAnalyzing || isGeneratingTitle || followerBlocked}
                   >
                     {isAnalyzing ? (
                       <><Loader2 className="h-4 w-4 animate-spin" />Analyzing post…</>
@@ -824,7 +835,7 @@ export default function CreateMarketPage() {
                     <Button className="gap-2" onClick={() => {
                       setStep("url"); setUrl(""); setPreview(null); setTxHashes([])
                       setMetricCombos([{ id: "1", metric: "views", threshold: "" }])
-                      setCustomTitle(""); setFollowerCount(null); setFollowerBlocked(false)
+                      setCustomTitle(""); setFollowerCount(null); setFollowerBlocked(false); setUrlError(null)
                     }}>
                       <Sparkles className="h-4 w-4" />
                       Create Another
