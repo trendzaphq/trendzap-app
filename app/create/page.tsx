@@ -14,7 +14,7 @@ import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
 import {
   Link2, Sparkles, TrendingUp, TrendingDown, Zap, Loader2,
   CheckCircle2, AlertTriangle, Info, Clock,
-  ArrowLeft, ArrowRight, ShieldCheck, ExternalLink
+  ArrowLeft, ArrowRight, ShieldCheck, ExternalLink, Plus, X as XIcon, Users
 } from "lucide-react"
 import { PostEmbed, type EmbedData } from "@/components/post-embed"
 
@@ -55,6 +55,8 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "bet", label: "Seed Bet" },
 ]
 
+interface MetricCombo { id: string; metric: string; threshold: string }
+
 export default function CreateMarketPage() {
   const router = useRouter()
   const { wallets } = useWallets()
@@ -74,15 +76,19 @@ export default function CreateMarketPage() {
 
   // Form fields
   const [customTitle, setCustomTitle] = useState("")
-  const [metric, setMetric] = useState("views")
-  const [threshold, setThreshold] = useState("")
+  const [metricCombos, setMetricCombos] = useState<MetricCombo[]>([{ id: "1", metric: "views", threshold: "" }])
   const [deadline, setDeadline] = useState("24h")
   const [betAmount, setBetAmount] = useState("0.1")
   const [selectedPosition, setSelectedPosition] = useState<"over" | "under">("over")
 
+  // Follower guard
+  const [followerCount, setFollowerCount] = useState<number | null>(null)
+  const [followerBlocked, setFollowerBlocked] = useState(false)
+
   // Tx state
   const [creating, setCreating] = useState(false)
-  const [txHash, setTxHash] = useState<string | null>(null)
+  const [creatingStep, setCreatingStep] = useState(0) // which combo is being created
+  const [txHashes, setTxHashes] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
   // Live embed — set after URL debounce (800ms) when it looks like a valid post URL
@@ -125,6 +131,12 @@ export default function CreateMarketPage() {
 
   // Auto-called when embed loads — extracts post_text and generates AI title
   const handleEmbedData = async (data: EmbedData) => {
+    // Follower count guard
+    if (data.follower_count !== null && data.follower_count !== undefined) {
+      setFollowerCount(data.follower_count)
+      setFollowerBlocked(data.follower_count < 1000)
+    }
+
     const text = data.post_text?.trim()
     if (!text || text.length < 10) return
     setIsGeneratingTitle(true)
@@ -146,6 +158,25 @@ export default function CreateMarketPage() {
       setIsGeneratingTitle(false)
     }
   }
+
+  // Combo management
+  const addCombo = () => {
+    if (metricCombos.length >= 4) return
+    const usedMetrics = metricCombos.map(c => c.metric)
+    const next = ["views", "likes", "retweets", "comments"].find(m => !usedMetrics.includes(m)) || "likes"
+    setMetricCombos(c => [...c, { id: Date.now().toString(), metric: next, threshold: "" }])
+  }
+  const removeCombo = (id: string) => setMetricCombos(c => c.filter(x => x.id !== id))
+  const updateCombo = (id: string, field: "metric" | "threshold", value: string) =>
+    setMetricCombos(c => c.map(x => x.id === id ? { ...x, [field]: value } : x))
+
+  // Auto-fill customTitle when AI title arrives (only if user hasn't typed anything)
+  useEffect(() => {
+    if (autoSuggestedTitle && !customTitle) {
+      setCustomTitle(autoSuggestedTitle)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSuggestedTitle])
 
   const analyzeUrl = async () => {
     setIsAnalyzing(true)
@@ -170,8 +201,8 @@ export default function CreateMarketPage() {
         body: JSON.stringify({
           url,
           platform: preview?.platform,
-          metric,
-          threshold: Number(threshold),
+          metric: metricCombos[0]?.metric,
+          threshold: Number(metricCombos[0]?.threshold),
           current_value: 0,
         }),
         signal: AbortSignal.timeout(8000),
@@ -192,11 +223,13 @@ export default function CreateMarketPage() {
   const createMarket = async () => {
     const wallet = wallets[0]
     if (!wallet) { setError("Connect your wallet first"); return }
-    if (!threshold) { setError("Threshold is required"); return }
+    const validCombos = metricCombos.filter(c => c.threshold && Number(c.threshold) > 0)
+    if (validCombos.length === 0) { setError("Set at least one threshold"); return }
     if (!preview) { setError("Please analyze a URL first"); return }
 
     setCreating(true)
     setError(null)
+    const hashes: string[] = []
 
     try {
       const ethereumProvider = await wallet.getEthereumProvider()
@@ -213,62 +246,60 @@ export default function CreateMarketPage() {
       const iface = new EthersInterface([
         "function createMarket(tuple(string postUrl, uint8 platform, uint8 metricType, uint256 threshold, uint256 startTime, uint256 endTime, uint256 resolutionTime) params, uint256 initialBet, bool betOnOver) payable returns (uint256)",
       ])
+      const nextIdIface = new EthersInterface(["function nextMarketId() view returns (uint256)"])
 
-      const params = {
-        postUrl: url,
-        platform: PLATFORM_MAP[preview.platform] ?? 0,
-        metricType: METRIC_MAP[metric] ?? 1,
-        threshold: BigInt(threshold).toString(),
-        startTime,
-        endTime,
-        resolutionTime,
+      for (let i = 0; i < validCombos.length; i++) {
+        setCreatingStep(i + 1)
+        const combo = validCombos[i]
+
+        const params = {
+          postUrl: url,
+          platform: PLATFORM_MAP[preview.platform] ?? 0,
+          metricType: METRIC_MAP[combo.metric] ?? 1,
+          threshold: BigInt(combo.threshold).toString(),
+          startTime,
+          endTime,
+          resolutionTime,
+        }
+
+        const betWei = parseEther(betAmount || "0.01")
+        const txData = iface.encodeFunctionData("createMarket", [
+          [params.postUrl, params.platform, params.metricType, params.threshold, params.startTime, params.endTime, params.resolutionTime],
+          betWei.toString(),
+          selectedPosition === "over",
+        ])
+
+        const tx = await signer.sendTransaction({ to: CONTRACTS.market, data: txData, value: betWei.toString() })
+        hashes.push(tx.hash)
+        await tx.wait()
+
+        try {
+          const nextIdResult = await provider.call({ to: CONTRACTS.market, data: nextIdIface.encodeFunctionData("nextMarketId", []) })
+          const nextId = nextIdIface.decodeFunctionResult("nextMarketId", nextIdResult)[0]
+          const marketId = Number(nextId) - 1
+          const metricLabel = METRIC_LABELS[combo.metric] || combo.metric
+          const baseTitle = customTitle || preview.suggestedTitle
+          await fetch("/api/markets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              market_id: marketId,
+              title: validCombos.length === 1 ? baseTitle : `${baseTitle} — ${metricLabel}`,
+              description: null,
+              thumbnail_url: null,
+              creator_address: await signer.getAddress(),
+            }),
+          })
+        } catch { /* metadata save failed — market still live on-chain */ }
       }
 
-      const betWei = parseEther(betAmount || "0.01")
-      const data = iface.encodeFunctionData("createMarket", [
-        [params.postUrl, params.platform, params.metricType, params.threshold, params.startTime, params.endTime, params.resolutionTime],
-        betWei.toString(),
-        selectedPosition === "over",
-      ])
-
-      const tx = await signer.sendTransaction({
-        to: CONTRACTS.market,
-        data,
-        value: betWei.toString(),
-      })
-
-      setTxHash(tx.hash)
-      await tx.wait()
-
-      try {
-        const nextIdIface = new EthersInterface(["function nextMarketId() view returns (uint256)"])
-        const nextIdResult = await provider.call({
-          to: CONTRACTS.market,
-          data: nextIdIface.encodeFunctionData("nextMarketId", []),
-        })
-        const nextId = nextIdIface.decodeFunctionResult("nextMarketId", nextIdResult)[0]
-        const marketId = Number(nextId) - 1
-
-        await fetch("/api/markets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            market_id: marketId,
-            title: customTitle || preview.suggestedTitle,
-            description: null,
-            thumbnail_url: null,
-            creator_address: await signer.getAddress(),
-          }),
-        })
-      } catch (e) {
-        console.error("Failed to save market metadata:", e)
-      }
-
+      setTxHashes(hashes)
       setStep("done")
     } catch (err) {
       setError((err as Error).message?.slice(0, 200) || "Transaction failed")
     } finally {
       setCreating(false)
+      setCreatingStep(0)
     }
   }
 
@@ -357,7 +388,7 @@ export default function CreateMarketPage() {
                   <Button
                     className="w-full h-11 gap-2 font-semibold"
                     onClick={analyzeUrl}
-                    disabled={!url.trim() || isAnalyzing || isGeneratingTitle}
+                    disabled={!url.trim() || isAnalyzing || isGeneratingTitle || followerBlocked}
                   >
                     {isAnalyzing ? (
                       <><Loader2 className="h-4 w-4 animate-spin" />Analyzing post…</>
@@ -369,6 +400,24 @@ export default function CreateMarketPage() {
                       <><ArrowRight className="h-4 w-4" />Continue</>
                     )}
                   </Button>
+
+                  {/* Follower count display + block */}
+                  {followerCount !== null && (
+                    followerBlocked ? (
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+                        <Users className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        <span>
+                          This account has fewer than 1,000 followers ({followerCount.toLocaleString()}).
+                          Markets on micro-accounts have very low liquidity and are disabled.
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        <span>{followerCount.toLocaleString()} followers — eligible for markets</span>
+                      </div>
+                    )
+                  )}
 
                   {!authenticated && (
                     <div className="flex items-start gap-2 p-3 rounded-lg bg-accent/10 border border-accent/20 text-xs text-accent">
@@ -408,50 +457,66 @@ export default function CreateMarketPage() {
                     <p className="text-xs text-muted-foreground">Leave blank to use the AI-suggested title.</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="metric">Metric to track</Label>
-                      <Select value={metric} onValueChange={setMetric}>
-                        <SelectTrigger id="metric">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="views">Views</SelectItem>
-                          <SelectItem value="likes">Likes</SelectItem>
-                          <SelectItem value="retweets">Retweets / Shares</SelectItem>
-                          <SelectItem value="comments">Comments</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="threshold">
-                        Threshold
-                        <span className="ml-1 text-xs text-muted-foreground font-normal">(raw count)</span>
-                      </Label>
-                      <Input
-                        id="threshold"
-                        type="number"
-                        min="1"
-                        placeholder="e.g. 1000000"
-                        className="font-mono"
-                        value={threshold}
-                        onChange={(e) => setThreshold(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Threshold explainer */}
-                  {threshold && Number(threshold) > 0 && (
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/40 text-xs text-muted-foreground">
-                      <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" />
-                      <span>
-                        Predictors bet on whether the {METRIC_LABELS[metric] || "metric"} reaches{" "}
-                        <strong className="text-foreground">{Number(threshold).toLocaleString()}</strong> by the deadline.
-                        Set this above the post's current count to make it interesting.
+                  {/* Multi-metric combos */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Metrics to track</Label>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        {metricCombos.length}/4 markets
                       </span>
                     </div>
-                  )}
+
+                    {metricCombos.map((combo, idx) => (
+                      <div key={combo.id} className="flex items-center gap-2">
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-[10px] font-bold text-primary shrink-0">
+                          {idx + 1}
+                        </div>
+                        <Select value={combo.metric} onValueChange={(v) => updateCombo(combo.id, "metric", v)}>
+                          <SelectTrigger className="w-[140px] shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="views">Views</SelectItem>
+                            <SelectItem value="likes">Likes</SelectItem>
+                            <SelectItem value="retweets">Retweets</SelectItem>
+                            <SelectItem value="comments">Comments</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-xs text-muted-foreground shrink-0">≥</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="e.g. 1000000"
+                          className="font-mono flex-1"
+                          value={combo.threshold}
+                          onChange={(e) => updateCombo(combo.id, "threshold", e.target.value)}
+                        />
+                        {metricCombos.length > 1 && (
+                          <button
+                            onClick={() => removeCombo(combo.id)}
+                            className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                          >
+                            <XIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    {metricCombos.length < 4 && (
+                      <button
+                        onClick={addCombo}
+                        className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors py-1"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add another metric
+                      </button>
+                    )}
+
+                    <p className="text-xs text-muted-foreground flex items-start gap-1">
+                      <Info className="h-3 w-3 shrink-0 mt-0.5" />
+                      Each metric creates a separate market. Bettors can participate in any or all of them independently.
+                    </p>
+                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="deadline">Resolution deadline</Label>
@@ -480,7 +545,7 @@ export default function CreateMarketPage() {
                     <Button
                       className="flex-1 gap-2 font-semibold"
                       onClick={() => { setStep("risk"); checkRisk() }}
-                      disabled={!threshold || Number(threshold) <= 0}
+                      disabled={!metricCombos.some(c => c.threshold && Number(c.threshold) > 0)}
                     >
                       Continue
                       <ArrowRight className="h-4 w-4" />
@@ -630,7 +695,7 @@ export default function CreateMarketPage() {
                         <TrendingUp className={`h-5 w-5 mb-2 ${selectedPosition === "over" ? "text-primary" : "text-muted-foreground"}`} />
                         <div className="font-bold text-sm">OVER</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          Will exceed {threshold ? Number(threshold).toLocaleString() : "—"} {METRIC_LABELS[metric] || "units"}
+                          Will exceed {metricCombos[0]?.threshold ? Number(metricCombos[0].threshold).toLocaleString() : "—"} {METRIC_LABELS[metricCombos[0]?.metric] || "units"}
                         </div>
                       </button>
                       <button
@@ -644,7 +709,7 @@ export default function CreateMarketPage() {
                         <TrendingDown className={`h-5 w-5 mb-2 ${selectedPosition === "under" ? "text-destructive" : "text-muted-foreground"}`} />
                         <div className="font-bold text-sm">UNDER</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          Will stay below {threshold ? Number(threshold).toLocaleString() : "—"} {METRIC_LABELS[metric] || "units"}
+                          Will stay below {metricCombos[0]?.threshold ? Number(metricCombos[0].threshold).toLocaleString() : "—"} {METRIC_LABELS[metricCombos[0]?.metric] || "units"}
                         </div>
                       </button>
                     </div>
@@ -657,23 +722,33 @@ export default function CreateMarketPage() {
                       <span className="font-medium truncate max-w-[200px]">{customTitle || preview.suggestedTitle}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Metric</span>
-                      <span className="font-mono">{threshold ? Number(threshold).toLocaleString() : "—"} {METRIC_LABELS[metric]}</span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="text-muted-foreground">Deadline</span>
                       <span>{DEADLINES.find((d) => d.value === deadline)?.label}</span>
                     </div>
+                    {/* Per-metric rows */}
+                    {metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).map((combo, i) => (
+                      <div key={combo.id} className={`flex justify-between ${i === 0 ? "border-t border-border/40 pt-2" : ""}`}>
+                        <span className="text-muted-foreground">{METRIC_LABELS[combo.metric] || combo.metric}</span>
+                        <span className="font-mono">≥ {Number(combo.threshold).toLocaleString()}</span>
+                      </div>
+                    ))}
                     <div className="border-t border-border/40 pt-2 flex justify-between">
-                      <span className="text-muted-foreground">Seed bet</span>
+                      <span className="text-muted-foreground">
+                        Seed bet
+                        {metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length > 1
+                          ? ` × ${metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length} markets`
+                          : ""}
+                      </span>
                       <span className="font-mono font-semibold flex items-center gap-1">
                         <Zap className="h-3.5 w-3.5 text-primary" />
-                        {betAmount || "0"} AVAX
+                        {(Number(betAmount || 0) * metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length).toFixed(3)} AVAX
                       </span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Protocol fee (3%)</span>
-                      <span className="font-mono">{(Number(betAmount || 0) * 0.03).toFixed(4)} AVAX</span>
+                      <span className="font-mono">
+                        {(Number(betAmount || 0) * metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length * 0.03).toFixed(4)} AVAX
+                      </span>
                     </div>
                   </div>
 
@@ -691,12 +766,20 @@ export default function CreateMarketPage() {
                     <Button
                       className="flex-1 h-12 gap-2 font-semibold text-base"
                       onClick={createMarket}
-                      disabled={creating || !wallets[0] || !threshold}
+                      disabled={creating || !wallets[0] || !metricCombos.some(c => c.threshold && Number(c.threshold) > 0)}
                     >
                       {creating ? (
-                        <><Loader2 className="h-5 w-5 animate-spin" />Creating Market…</>
+                        <><Loader2 className="h-5 w-5 animate-spin" />
+                          {metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length > 1
+                            ? `Creating market ${creatingStep}/${metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length}…`
+                            : "Creating Market…"}
+                        </>
                       ) : (
-                        <><Sparkles className="h-5 w-5" />Create &amp; Zap</>
+                        <><Sparkles className="h-5 w-5" />
+                          {metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length > 1
+                            ? `Create ${metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length} Markets & Zap`
+                            : "Create & Zap"}
+                        </>
                       )}
                     </Button>
                   </div>
@@ -709,30 +792,39 @@ export default function CreateMarketPage() {
               )}
 
               {/* ─── DONE ─── */}
-              {step === "done" && txHash && (
+              {step === "done" && txHashes.length > 0 && (
                 <div className="rounded-2xl border border-primary/30 bg-card p-8 space-y-6 text-center">
                   <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 mx-auto">
                     <CheckCircle2 className="h-8 w-8 text-green-500" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold mb-1">Market Created!</h2>
-                    <p className="text-sm text-muted-foreground">Your prediction market is now live on Avalanche.</p>
+                    <h2 className="text-xl font-bold mb-1">
+                      {txHashes.length === 1 ? "Market Created!" : `${txHashes.length} Markets Created!`}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">Your prediction {txHashes.length === 1 ? "market is" : "markets are"} now live on Avalanche.</p>
                   </div>
-                  <a
-                    href={`${EXPLORER_URL}/tx/${txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-primary underline"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    View transaction on Snowtrace
-                  </a>
+                  <div className="space-y-2">
+                    {txHashes.map((hash, i) => (
+                      <a
+                        key={hash}
+                        href={`${EXPLORER_URL}/tx/${hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 text-sm text-primary underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        {txHashes.length > 1 ? `Market ${i + 1} transaction` : "View transaction on Snowtrace"}
+                      </a>
+                    ))}
+                  </div>
                   <div className="flex gap-3 justify-center">
                     <Button variant="outline" className="gap-2 bg-transparent" onClick={() => router.push("/")}>
                       Browse Markets
                     </Button>
                     <Button className="gap-2" onClick={() => {
-                      setStep("url"); setUrl(""); setPreview(null); setTxHash(null); setThreshold(""); setCustomTitle("")
+                      setStep("url"); setUrl(""); setPreview(null); setTxHashes([])
+                      setMetricCombos([{ id: "1", metric: "views", threshold: "" }])
+                      setCustomTitle(""); setFollowerCount(null); setFollowerBlocked(false)
                     }}>
                       <Sparkles className="h-4 w-4" />
                       Create Another
@@ -809,8 +901,8 @@ export default function CreateMarketPage() {
                       </div>
                     )}
 
-                    {/* Market structure preview once threshold is set */}
-                    {threshold && Number(threshold) > 0 && preview ? (
+                    {/* Market structure preview once any threshold is set */}
+                    {metricCombos.some(c => c.threshold && Number(c.threshold) > 0) && preview ? (
                       <div className="p-4 pt-0 border-t border-border/40 space-y-2 mt-1">
                         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Market preview</p>
                         <p className="text-xs font-medium line-clamp-2">{customTitle || preview.suggestedTitle}</p>
@@ -821,9 +913,11 @@ export default function CreateMarketPage() {
                           </div>
                           <span className="text-[10px] text-muted-foreground">50 / 50</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          ≥ {Number(threshold).toLocaleString()} {METRIC_LABELS[metric]} in {DEADLINES.find(d => d.value === deadline)?.label}
-                        </p>
+                        {metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).map(combo => (
+                          <p key={combo.id} className="text-xs text-muted-foreground">
+                            {METRIC_LABELS[combo.metric]} ≥ {Number(combo.threshold).toLocaleString()} in {DEADLINES.find(d => d.value === deadline)?.label}
+                          </p>
+                        ))}
                       </div>
                     ) : !preview ? (
                       <div className="px-4 pb-4 text-xs text-muted-foreground italic">

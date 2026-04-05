@@ -68,29 +68,61 @@ export async function GET(req: NextRequest) {
 
       // Fetch live stats via Twitter API v2 (requires TWITTER_BEARER_TOKEN)
       let stats: Record<string, number> | null = null
+      let follower_count: number | null = null
       const tweetId = extractTweetId(url)
       const bearer = process.env.TWITTER_BEARER_TOKEN
 
-      if (tweetId && bearer) {
-        try {
-          const statsRes = await fetch(
-            `https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=public_metrics`,
-            {
-              headers: { Authorization: `Bearer ${bearer}` },
-              signal: AbortSignal.timeout(5000),
+      if (tweetId) {
+        // Try official API v2 first (requires paid tier)
+        if (bearer) {
+          try {
+            const statsRes = await fetch(
+              `https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=public_metrics`,
+              {
+                headers: { Authorization: `Bearer ${bearer}` },
+                signal: AbortSignal.timeout(5000),
+              }
+            )
+            if (statsRes.ok) {
+              const statsJson = await statsRes.json()
+              const pm = statsJson.data?.public_metrics
+              if (pm) stats = pm
             }
-          )
-          if (statsRes.ok) {
-            const statsJson = await statsRes.json()
-            stats = statsJson.data?.public_metrics ?? null
-          }
-        } catch {
-          // Bearer token invalid or rate-limit — embed still renders fine
+          } catch { /* fall through to syndication */ }
+        }
+
+        // Fallback: Twitter syndication API (no auth — used by react-tweet)
+        if (!stats) {
+          try {
+            const token = ((Number(tweetId) / 1e15) * Math.PI)
+              .toString(6)
+              .replace(/(.).*\1/, "")
+              .slice(-6)
+            const syndRes = await fetch(
+              `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&lang=en&token=${token}`,
+              { signal: AbortSignal.timeout(5000) }
+            )
+            if (syndRes.ok) {
+              const s = await syndRes.json()
+              if (s?.favorite_count !== undefined || s?.retweet_count !== undefined) {
+                stats = {
+                  like_count: s.favorite_count ?? 0,
+                  retweet_count: s.retweet_count ?? 0,
+                  reply_count: s.conversation_count ?? 0,
+                  quote_count: s.quote_count ?? 0,
+                  bookmark_count: s.bookmark_count ?? 0,
+                }
+              }
+              if (s?.user?.followers_count !== undefined) {
+                follower_count = s.user.followers_count
+              }
+            }
+          } catch { /* syndication unavailable */ }
         }
       }
 
       return NextResponse.json(
-        { platform: "x", embed_html: oEmbed.html, author_name: oEmbed.author_name, post_text, stats },
+        { platform: "x", embed_html: oEmbed.html, author_name: oEmbed.author_name, post_text, stats, follower_count },
         { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
       )
     }

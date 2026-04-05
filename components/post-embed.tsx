@@ -23,6 +23,7 @@ export interface EmbedData {
   thumbnail_url?: string
   post_text?: string | null
   stats?: EmbedStats | null
+  follower_count?: number | null
 }
 
 function fmt(n?: number): string {

@@ -7,8 +7,11 @@ import { GradientAvatar, getAddressGradient } from "@/components/user-profile"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePrivy, useWallets } from "@privy-io/react-auth"
 import { useMarketList } from "@/hooks/use-market"
-import { Copy, ExternalLink, CheckCircle2, Zap, TrendingUp, BarChart3 } from "lucide-react"
-import { useState } from "react"
+import { Copy, ExternalLink, CheckCircle2, Zap, TrendingUp, BarChart3, Wallet } from "lucide-react"
+import { useState, useEffect } from "react"
+import { createPublicClient, http, formatEther } from "viem"
+import { avalanche } from "viem/chains"
+import { RPC_URL } from "@/lib/contracts"
 
 function ProfileHero() {
   const { user, authenticated } = usePrivy()
@@ -25,6 +28,13 @@ function ProfileHero() {
     : "Anonymous"
   const initials = displayName.slice(0, 2).toUpperCase()
   const [bannerC1, bannerC2] = getAddressGradient(address)
+  const [balance, setBalance] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!address) return
+    const client = createPublicClient({ chain: avalanche, transport: http(RPC_URL) })
+    client.getBalance({ address: address as `0x${string}` }).then((b) => setBalance(formatEther(b))).catch(() => {})
+  }, [address])
 
   const myMarkets = address
     ? markets.filter((m) => m.creator?.toLowerCase() === address.toLowerCase())
@@ -104,7 +114,7 @@ function ProfileHero() {
         )}
 
         {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/30 border border-border/30">
             <TrendingUp className="h-4 w-4 text-primary" />
             <span className="text-lg font-bold font-mono tabular-nums">{myMarkets.length}</span>
@@ -114,6 +124,13 @@ function ProfileHero() {
             <BarChart3 className="h-4 w-4 text-secondary" />
             <span className="text-lg font-bold font-mono tabular-nums">{totalVolume}</span>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Vol AVAX</span>
+          </div>
+          <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/30 border border-border/30">
+            <Wallet className="h-4 w-4 text-emerald-400" />
+            <span className="text-lg font-bold font-mono tabular-nums">
+              {balance !== null ? parseFloat(balance).toFixed(3) : "—"}
+            </span>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Balance</span>
           </div>
           <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/30 border border-border/30">
             <Zap className="h-4 w-4 text-accent" />
