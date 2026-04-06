@@ -13,10 +13,11 @@ import { parseEther } from "viem"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
 import {
   Link2, Sparkles, TrendingUp, TrendingDown, Zap, Loader2,
-  CheckCircle2, AlertTriangle, Info, Clock,
+  CheckCircle2, AlertTriangle, Info, Clock, HelpCircle,
   ArrowLeft, ArrowRight, ShieldCheck, ExternalLink, Plus, X as XIcon, Users
 } from "lucide-react"
 import { PostEmbed, type EmbedData } from "@/components/post-embed"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 const PLATFORM_MAP: Record<string, number> = { twitter: 0, x: 0, youtube: 1, tiktok: 2, instagram: 3 }
 const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
@@ -56,6 +57,29 @@ const STEPS: { id: Step; label: string }[] = [
 ]
 
 interface MetricCombo { id: string; metric: string; threshold: string }
+
+function InfoTooltip({ content, side = "top" }: { content: string; side?: "top" | "right" | "bottom" | "left" }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center justify-center h-4 w-4 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          <span className="sr-only">More info</span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side={side}
+        sideOffset={6}
+        className="max-w-[260px] text-xs leading-relaxed bg-[oklch(0.14_0.02_264)] border border-border/50 text-foreground shadow-xl"
+      >
+        {content}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 export default function CreateMarketPage() {
   const router = useRouter()
@@ -379,7 +403,10 @@ export default function CreateMarketPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="url">Post URL</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor="url">Post URL</Label>
+                      <InfoTooltip content="Paste any public X (Twitter) post or YouTube video URL. We'll fetch live stats and use AI to suggest market settings." />
+                    </div>
                     <Input
                       id="url"
                       placeholder="https://x.com/user/status/... or https://youtube.com/watch?v=..."
@@ -395,10 +422,7 @@ export default function CreateMarketPage() {
                         {urlError}
                       </p>
                     ) : (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Info className="h-3 w-3 shrink-0" />
-                        Supports X (Twitter) and YouTube — more platforms unlocking soon.
-                      </p>
+                      <p className="text-xs text-muted-foreground">Supports X and YouTube — TikTok &amp; Instagram coming soon.</p>
                     )}
                   </div>
 
@@ -462,7 +486,10 @@ export default function CreateMarketPage() {
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="title">Market Question <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor="title">Market Question <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                      <InfoTooltip content="This is the question bettors see. Leave blank and we'll use the AI-generated title based on the post content." />
+                    </div>
                     <Textarea
                       id="title"
                       placeholder={preview.suggestedTitle}
@@ -471,13 +498,15 @@ export default function CreateMarketPage() {
                       value={customTitle}
                       onChange={(e) => setCustomTitle(e.target.value)}
                     />
-                    <p className="text-xs text-muted-foreground">Leave blank to use the AI-suggested title.</p>
                   </div>
 
                   {/* Multi-metric combos */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label>Metrics to track</Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label>Metrics to track</Label>
+                        <InfoTooltip content="Each metric+threshold pair creates a separate market on-chain. Bettors pick any they like. Max 4 per post." />
+                      </div>
                       <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                         {metricCombos.length}/4 markets
                       </span>
@@ -528,15 +557,13 @@ export default function CreateMarketPage() {
                         Add another metric
                       </button>
                     )}
-
-                    <p className="text-xs text-muted-foreground flex items-start gap-1">
-                      <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                      Each metric creates a separate market. Bettors can participate in any or all of them independently.
-                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="deadline">Resolution deadline</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor="deadline">Resolution deadline</Label>
+                      <InfoTooltip content="How long until the oracle checks the final metric value. After the deadline + 5 min buffer, OVER wins if actual ≥ threshold, UNDER wins otherwise." />
+                    </div>
                     <Select value={deadline} onValueChange={setDeadline}>
                       <SelectTrigger id="deadline">
                         <SelectValue />
@@ -547,11 +574,6 @@ export default function CreateMarketPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground flex items-start gap-1">
-                      <Clock className="h-3 w-3 shrink-0 mt-0.5" />
-                      At the deadline, our oracle checks the actual metric value. If actual ≥ threshold, OVER wins. Otherwise UNDER wins.
-                      A 5-minute resolution buffer is added automatically.
-                    </p>
                   </div>
 
                   <div className="flex gap-3 pt-2">
@@ -665,7 +687,10 @@ export default function CreateMarketPage() {
 
                   {/* Bet amount */}
                   <div className="space-y-2">
-                    <Label htmlFor="bet-amount">Seed Bet (AVAX)</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label htmlFor="bet-amount">Seed Bet (AVAX)</Label>
+                      <InfoTooltip content="You're the first bettor — your seed activates the market and sets the initial pool. Other users can bet on either side after you." />
+                    </div>
                     <Input
                       id="bet-amount"
                       type="number"
@@ -691,15 +716,14 @@ export default function CreateMarketPage() {
                         </button>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground flex items-start gap-1">
-                      <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                      You're the first bettor — your seed creates the initial pool. Others can bet on either side after.
-                    </p>
                   </div>
 
                   {/* Position */}
                   <div className="space-y-2">
-                    <Label>Your initial position</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label>Your initial position</Label>
+                      <InfoTooltip content="Pick OVER if you believe the metric will reach the threshold. Pick UNDER if you think it won't. You can bet on either side." />
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         onClick={() => setSelectedPosition("over")}

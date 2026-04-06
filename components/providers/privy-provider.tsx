@@ -59,7 +59,8 @@ export function PrivyClientProvider({ children }: PrivyClientProviderProps) {
           logo: "/trendzap-logo.svg",
           showWalletLoginFirst: false,
         },
-        loginMethods: ["email", "wallet", "google", "twitter"],
+        // Social logins (email, google, twitter) require API keys — enable when ready
+        loginMethods: ["wallet"],
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
         },
