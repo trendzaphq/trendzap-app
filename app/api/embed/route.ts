@@ -88,10 +88,38 @@ export async function GET(req: NextRequest) {
               const pm = statsJson.data?.public_metrics
               if (pm) stats = pm
             }
+          } catch { /* fall through */ }
+        }
+
+        // Fallback: FxTwitter API — reliable, no auth, includes view counts
+        if (!stats) {
+          try {
+            const urlMatch = url.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/\d+/)
+            const username = urlMatch?.[1]
+            if (username) {
+              const fxRes = await fetch(
+                `https://api.fxtwitter.com/${username}/status/${tweetId}`,
+                { signal: AbortSignal.timeout(5000) }
+              )
+              if (fxRes.ok) {
+                const fx = await fxRes.json()
+                const t = fx.tweet
+                if (t) {
+                  stats = {
+                    like_count: t.likes ?? 0,
+                    retweet_count: t.retweets ?? 0,
+                    reply_count: t.replies ?? 0,
+                    quote_count: t.quote_count ?? 0,
+                    view_count: t.views ?? undefined,
+                  }
+                  if (t.author?.followers != null) follower_count = t.author.followers
+                }
+              }
+            }
           } catch { /* fall through to syndication */ }
         }
 
-        // Fallback: Twitter syndication API (no auth — used by react-tweet)
+        // Final fallback: Twitter syndication API (no auth — used by react-tweet)
         if (!stats) {
           try {
             const token = ((Number(tweetId) / 1e15) * Math.PI)
@@ -104,17 +132,16 @@ export async function GET(req: NextRequest) {
             )
             if (syndRes.ok) {
               const s = await syndRes.json()
-              if (s?.favorite_count !== undefined || s?.retweet_count !== undefined || s?.views?.count !== undefined) {
+              if (s?.favorite_count !== undefined || s?.retweet_count !== undefined) {
                 stats = {
                   like_count: s.favorite_count ?? 0,
                   retweet_count: s.retweet_count ?? 0,
                   reply_count: s.conversation_count ?? 0,
                   quote_count: s.quote_count ?? 0,
-                  bookmark_count: s.bookmark_count ?? 0,
                   view_count: s.views?.count ? parseInt(s.views.count, 10) : undefined,
                 }
               }
-              if (s?.user?.followers_count !== undefined) {
+              if (follower_count == null && s?.user?.followers_count !== undefined) {
                 follower_count = s.user.followers_count
               }
             }
@@ -124,7 +151,7 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json(
         { platform: "x", embed_html: oEmbed.html, author_name: oEmbed.author_name, post_text, stats, follower_count },
-        { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
+        { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120" } }
       )
     }
 
