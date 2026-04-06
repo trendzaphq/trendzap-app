@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { usePrivy, useWallets } from "@privy-io/react-auth"
+import { parseEther } from "viem"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -23,6 +26,17 @@ import {
 } from "@/components/ui/dialog"
 import { useMarketList, type MarketData } from "@/hooks/use-market"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
+
+const PLATFORM_MAP: Record<string, number> = { x: 0, youtube: 1, tiktok: 2, instagram: 3 }
+const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
+const DURATIONS: Record<string, number> = { "1h": 3600, "6h": 21600, "24h": 86400, "3d": 259200, "7d": 604800 }
+
+function detectPlatform(url: string): string {
+  if (url.includes("twitter.com") || url.includes("x.com")) return "x"
+  if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube"
+  if (url.includes("tiktok.com")) return "tiktok"
+  return "x"
+}
 
 // ── Service health types ─────────────────────────────────────
 interface ServiceHealth {
@@ -176,6 +190,183 @@ function CancelDialog({
   )
 }
 
+// ── Admin create market dialog ────────────────────────────────
+function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { wallets } = useWallets()
+  const [url, setUrl] = useState("")
+  const [metric, setMetric] = useState("views")
+  const [threshold, setThreshold] = useState("")
+  const [deadline, setDeadline] = useState("24h")
+  const [seedAmount, setSeedAmount] = useState("0.001")
+  const [position, setPosition] = useState<"over" | "under">("over")
+  const [title, setTitle] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [txHash, setTxHash] = useState<string | null>(null)
+
+  const reset = () => {
+    setUrl(""); setMetric("views"); setThreshold(""); setDeadline("24h")
+    setSeedAmount("0.001"); setPosition("over"); setTitle(""); setError(null); setTxHash(null)
+  }
+
+  const create = async () => {
+    if (!url.trim() || !threshold || Number(threshold) <= 0) {
+      setError("URL and threshold are required"); return
+    }
+    const seed = Number(seedAmount)
+    if (isNaN(seed) || seed <= 0) { setError("Invalid seed amount"); return }
+
+    const wallet = wallets[0]
+    if (!wallet) { setError("Connect admin wallet first"); return }
+
+    setLoading(true); setError(null)
+    try {
+      await wallet.switchChain(43114)
+      const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
+      const provider = new BrowserProvider(await wallet.getEthereumProvider())
+      const signer = await provider.getSigner()
+
+      const now = Math.floor(Date.now() / 1000)
+      const duration = DURATIONS[deadline] ?? 86400
+      const startTime = now + 60
+      const endTime = startTime + duration
+      const resolutionTime = endTime + 300
+      const platform = detectPlatform(url)
+
+      const iface = new EthersInterface([
+        "function createMarket(tuple(string postUrl, uint8 platform, uint8 metricType, uint256 threshold, uint256 startTime, uint256 endTime, uint256 resolutionTime) params, uint256 initialBet, bool betOnOver) payable returns (uint256)",
+      ])
+      const betWei = parseEther(seedAmount || "0.001")
+
+      const tx = await signer.sendTransaction({
+        to: CONTRACTS.market,
+        data: iface.encodeFunctionData("createMarket", [
+          [url, PLATFORM_MAP[platform] ?? 0, METRIC_MAP[metric] ?? 1,
+           BigInt(threshold).toString(), startTime, endTime, resolutionTime],
+          betWei.toString(),
+          position === "over",
+        ]),
+        value: betWei.toString(),
+      })
+      await tx.wait()
+      setTxHash(tx.hash)
+
+      // Save metadata
+      try {
+        const nextIdIface = new EthersInterface(["function nextMarketId() view returns (uint256)"])
+        const result = await provider.call({ to: CONTRACTS.market, data: nextIdIface.encodeFunctionData("nextMarketId", []) })
+        const nextId = nextIdIface.decodeFunctionResult("nextMarketId", result)[0]
+        const marketId = Number(nextId) - 1
+        await fetch("/api/markets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            market_id: marketId,
+            title: title.trim() || `Will this ${platform.toUpperCase()} post go viral?`,
+            description: null, thumbnail_url: null,
+            creator_address: await signer.getAddress(),
+          }),
+        })
+      } catch { /* metadata optional */ }
+    } catch (e) {
+      setError((e as Error).message?.slice(0, 200) || "Transaction failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose() } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create Market (Admin)</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          {txHash ? (
+            <div className="space-y-3">
+              <p className="text-sm text-green-500 font-semibold">Market created!</p>
+              <a href={`${EXPLORER_URL}/tx/${txHash}`} target="_blank" rel="noreferrer"
+                className="text-xs text-blue-400 underline break-all">
+                {txHash}
+              </a>
+              <Button className="w-full" onClick={() => { reset(); onClose() }}>Done</Button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <Label>Post URL</Label>
+                <Input placeholder="https://x.com/user/status/..." value={url}
+                  onChange={(e) => setUrl(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Market Title <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                <Input placeholder="Will this post go viral?" value={title}
+                  onChange={(e) => setTitle(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label>Metric</Label>
+                  <Select value={metric} onValueChange={setMetric}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="views">Views</SelectItem>
+                      <SelectItem value="likes">Likes</SelectItem>
+                      <SelectItem value="retweets">Retweets</SelectItem>
+                      <SelectItem value="comments">Comments</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Threshold</Label>
+                  <Input type="number" min="1" placeholder="e.g. 1000000" className="font-mono"
+                    value={threshold} onChange={(e) => setThreshold(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label>Deadline</Label>
+                  <Select value={deadline} onValueChange={setDeadline}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(DURATIONS).map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Position</Label>
+                  <Select value={position} onValueChange={(v) => setPosition(v as "over" | "under")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="over">Over</SelectItem>
+                      <SelectItem value="under">Under</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Seed AVAX <span className="text-xs text-muted-foreground">(min 0.001 — admin bypass)</span></Label>
+                <Input type="number" min="0.001" step="0.001" className="font-mono"
+                  value={seedAmount} onChange={(e) => setSeedAmount(e.target.value)} />
+              </div>
+              {error && <p className="text-xs text-destructive">{error}</p>}
+            </>
+          )}
+        </div>
+        {!txHash && (
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { reset(); onClose() }}>Cancel</Button>
+            <Button onClick={create} disabled={loading || !url.trim() || !threshold}>
+              {loading ? "Creating…" : "Create Market"}
+            </Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Status badge ─────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const color: Record<string, string> = {
@@ -207,6 +398,7 @@ export default function AdminPage() {
   const [resolveTarget, setResolveTarget] = useState<MarketData | null>(null)
   const [cancelTarget, setCancelTarget] = useState<MarketData | null>(null)
   const [filter, setFilter] = useState<string>("ALL")
+  const [createOpen, setCreateOpen] = useState(false)
 
   // ── Health check polling ──────────────────────────
   const checkHealth = useCallback(async () => {
@@ -285,9 +477,14 @@ export default function AdminPage() {
               : "Connect wallet to take actions"}
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={checkHealth}>
-          Refresh health
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            + Create Market
+          </Button>
+          <Button size="sm" variant="outline" onClick={checkHealth}>
+            Refresh health
+          </Button>
+        </div>
       </div>
 
       {/* Service health ─────────────────────────────── */}
@@ -442,6 +639,7 @@ export default function AdminPage() {
       </Card>
 
       {/* Dialogs ─────────────────────────────────────── */}
+      <AdminCreateDialog open={createOpen} onClose={() => setCreateOpen(false)} />
       <ResolveDialog
         market={resolveTarget}
         onClose={() => setResolveTarget(null)}
