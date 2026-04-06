@@ -218,6 +218,40 @@ export function useMarketList() {
   return { markets, loading }
 }
 
+// ─── ERC20 Settlement Helper ──────────────────────────────
+// Returns true if contract uses ERC20 settlement (and handles approval),
+// false if native AVAX. Call before any write to the market contract.
+
+async function ensureSettlementAllowance(provider: any, signer: any, amount: bigint): Promise<boolean> {
+  const { Contract, MaxUint256 } = await import("ethers")
+  const contract = new Contract(
+    CONTRACTS.market,
+    [
+      "function isTokenSettlement() view returns (bool)",
+      "function settlementToken() view returns (address)",
+    ],
+    provider
+  )
+  const isERC20: boolean = await contract.isTokenSettlement()
+  if (!isERC20) return false
+  const tokenAddr: string = await contract.settlementToken()
+  const erc20 = new Contract(
+    tokenAddr,
+    [
+      "function allowance(address owner, address spender) view returns (uint256)",
+      "function approve(address spender, uint256 amount) returns (bool)",
+    ],
+    signer
+  )
+  const userAddress: string = await signer.getAddress()
+  const allowance: bigint = await erc20.allowance(userAddress, CONTRACTS.market)
+  if (allowance < amount) {
+    const approveTx = await erc20.approve(CONTRACTS.market, MaxUint256)
+    await approveTx.wait()
+  }
+  return true
+}
+
 // ─── useBuyShares: write (requires wallet) ────────────────
 
 export function useBuyShares() {
@@ -243,6 +277,8 @@ export function useBuyShares() {
         const signer = await provider.getSigner()
         const value = parseEther(amountAvax)
 
+        const isERC20 = await ensureSettlementAllowance(provider, signer, value)
+
         const iface = new EthersInterface([
           "function buyShares(uint256 marketId, bool isOver) payable returns (uint256)",
         ])
@@ -251,7 +287,7 @@ export function useBuyShares() {
         const tx = await signer.sendTransaction({
           to: CONTRACTS.market,
           data,
-          value: value.toString(),
+          value: isERC20 ? "0" : value.toString(),
         })
 
         setTxHash(tx.hash)
@@ -382,6 +418,8 @@ export function useCreateMarket() {
         const signer = await provider.getSigner()
         const value = parseEther(params.initialBet)
 
+        const isERC20 = await ensureSettlementAllowance(provider, signer, value)
+
         const iface = new EthersInterface([
           "function createMarket(tuple(string postUrl, uint8 platform, uint8 metricType, uint256 threshold, uint256 startTime, uint256 endTime, uint256 resolutionTime) params, uint256 initialBet, bool betOnOver) payable returns (uint256)",
         ])
@@ -403,7 +441,7 @@ export function useCreateMarket() {
         const tx = await signer.sendTransaction({
           to: CONTRACTS.market,
           data,
-          value: value.toString(),
+          value: isERC20 ? "0" : value.toString(),
         })
 
         setTxHash(tx.hash)

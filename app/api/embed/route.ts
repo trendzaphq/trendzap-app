@@ -104,13 +104,14 @@ export async function GET(req: NextRequest) {
             )
             if (syndRes.ok) {
               const s = await syndRes.json()
-              if (s?.favorite_count !== undefined || s?.retweet_count !== undefined) {
+              if (s?.favorite_count !== undefined || s?.retweet_count !== undefined || s?.views?.count !== undefined) {
                 stats = {
                   like_count: s.favorite_count ?? 0,
                   retweet_count: s.retweet_count ?? 0,
                   reply_count: s.conversation_count ?? 0,
                   quote_count: s.quote_count ?? 0,
                   bookmark_count: s.bookmark_count ?? 0,
+                  view_count: s.views?.count ? parseInt(s.views.count, 10) : undefined,
                 }
               }
               if (s?.user?.followers_count !== undefined) {
