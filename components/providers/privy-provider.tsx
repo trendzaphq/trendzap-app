@@ -40,9 +40,14 @@ const avalancheFuji = {
 export function PrivyClientProvider({ children }: PrivyClientProviderProps) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || ""
 
-  // During Docker build NEXT_PUBLIC_* vars are absent — render children directly
-  // rather than passing an invalid appId to Privy which throws at prerender time
-  if (!appId) return <>{children}</>
+  // During Docker build NEXT_PUBLIC_* vars are absent — skip Privy init.
+  // In development, warn loudly so this misconfiguration is obvious.
+  if (!appId) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[TrendZap] NEXT_PUBLIC_PRIVY_APP_ID is not set — wallet auth will not work!")
+    }
+    return <>{children}</>
+  }
 
   return (
     <PrivyProvider
