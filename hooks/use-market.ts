@@ -236,6 +236,7 @@ export function useBuyShares() {
       setTxHash(null)
 
       try {
+        await wallet.switchChain(43114)
         const ethereumProvider = await wallet.getEthereumProvider()
         const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
         const provider = new BrowserProvider(ethereumProvider)
@@ -283,6 +284,7 @@ export function useClaimWinnings() {
 
       setLoading(true)
       try {
+        await wallet.switchChain(43114)
         const ethereumProvider = await wallet.getEthereumProvider()
         const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
         const provider = new BrowserProvider(ethereumProvider)
@@ -373,6 +375,7 @@ export function useCreateMarket() {
       setTxHash(null)
 
       try {
+        await wallet.switchChain(43114)
         const ethereumProvider = await wallet.getEthereumProvider()
         const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
         const provider = new BrowserProvider(ethereumProvider)
