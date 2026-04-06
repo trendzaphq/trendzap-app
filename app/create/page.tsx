@@ -108,8 +108,10 @@ export default function CreateMarketPage() {
       if (d.deadline) setDeadline(d.deadline)
       if (d.betAmount) setBetAmount(d.betAmount)
       if (d.selectedPosition) setSelectedPosition(d.selectedPosition)
-      // Only restore up to "details" step — "risk"/"bet" depend on volatile analysis
-      if (d.step === "details") setStep("details")
+      if (d.preview) setPreview(d.preview)
+      if (d.autoSuggestedTitle) setAutoSuggestedTitle(d.autoSuggestedTitle)
+      if (d.autoViralityNote) setAutoViralityNote(d.autoViralityNote)
+      if (d.step && d.step !== "done") setStep(d.step)
     } catch {}
   }, [])
 
@@ -170,10 +172,13 @@ export default function CreateMarketPage() {
     if (draftSaveBlocked.current) { draftSaveBlocked.current = false; return }
     if (step === "done") { localStorage.removeItem(DRAFT_KEY); return }
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, url, customTitle, metricCombos, deadline, betAmount, selectedPosition }))
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        step, url, customTitle, metricCombos, deadline, betAmount, selectedPosition,
+        preview, autoSuggestedTitle, autoViralityNote,
+      }))
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, url, customTitle, metricCombos, deadline, betAmount, selectedPosition])
+  }, [step, url, customTitle, metricCombos, deadline, betAmount, selectedPosition, preview, autoSuggestedTitle, autoViralityNote])
 
   const getUrlError = (u: string): string | null => {
     if (!u.trim()) return null
@@ -292,6 +297,7 @@ export default function CreateMarketPage() {
     const validCombos = metricCombos.filter(c => c.threshold && Number(c.threshold) > 0)
     if (validCombos.length === 0) { setError("Set at least one threshold"); return }
     if (!preview) { setError("Please analyze a URL first"); return }
+    if (Number(betAmount) < 0.05) { setError("Minimum seed bet is 0.05 AVAX"); return }
 
     setCreating(true)
     setError(null)
@@ -320,7 +326,7 @@ export default function CreateMarketPage() {
             ["function allowance(address,address) view returns (uint256)", "function approve(address,uint256) returns (bool)"],
             signer
           )
-          const betWei = parseEther(betAmount || "0.01")
+          const betWei = parseEther(betAmount || "0.05")
           const totalNeeded = betWei * BigInt(metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length)
           const userAddress = await signer.getAddress()
           const allowance: bigint = await erc20.allowance(userAddress, CONTRACTS.market)
@@ -356,7 +362,7 @@ export default function CreateMarketPage() {
           resolutionTime,
         }
 
-        const betWei = parseEther(betAmount || "0.01")
+        const betWei = parseEther(betAmount || "0.05")
         const txData = iface.encodeFunctionData("createMarket", [
           [params.postUrl, params.platform, params.metricType, params.threshold, params.startTime, params.endTime, params.resolutionTime],
           betWei.toString(),
@@ -742,7 +748,7 @@ export default function CreateMarketPage() {
                 <div className="rounded-2xl border border-border/50 bg-card p-6 space-y-5">
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold">Seed Your Market</h2>
-                    <p className="text-sm text-muted-foreground">Place the first bet to activate the market. Minimum 0.01 AVAX.</p>
+                    <p className="text-sm text-muted-foreground">Place the first bet to activate the market. Minimum 0.05 AVAX.</p>
                   </div>
 
                   {/* Bet amount */}
@@ -754,15 +760,21 @@ export default function CreateMarketPage() {
                     <Input
                       id="bet-amount"
                       type="number"
-                      min="0.01"
+                      min="0.05"
                       step="0.01"
                       placeholder="0.1"
                       value={betAmount}
                       onChange={(e) => setBetAmount(e.target.value)}
-                      className="h-11 text-lg font-mono"
+                      className={`h-11 text-lg font-mono ${Number(betAmount) > 0 && Number(betAmount) < 0.05 ? "border-destructive focus-visible:ring-destructive" : ""}`}
                     />
+                    {Number(betAmount) > 0 && Number(betAmount) < 0.05 && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        Minimum seed bet is 0.05 AVAX to ensure enough initial liquidity.
+                      </p>
+                    )}
                     <div className="flex gap-1.5">
-                      {["0.01", "0.05", "0.1", "0.5", "1"].map((a) => (
+                      {["0.05", "0.1", "0.25", "0.5", "1"].map((a) => (
                         <button
                           key={a}
                           onClick={() => setBetAmount(a)}
@@ -867,7 +879,7 @@ export default function CreateMarketPage() {
                     <Button
                       className="flex-1 h-12 gap-2 font-semibold text-base"
                       onClick={createMarket}
-                      disabled={creating || !wallets[0] || !metricCombos.some(c => c.threshold && Number(c.threshold) > 0)}
+                      disabled={creating || !wallets[0] || !metricCombos.some(c => c.threshold && Number(c.threshold) > 0) || Number(betAmount) < 0.05}
                     >
                       {creating ? (
                         <><Loader2 className="h-5 w-5 animate-spin" />
