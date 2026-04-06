@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Eye, Heart, Repeat2, MessageCircle, Loader2, RefreshCw, ExternalLink, BookmarkIcon, Quote } from "lucide-react"
+import { Eye, Heart, Repeat2, MessageCircle, Loader2, RefreshCw, ExternalLink } from "lucide-react"
 
 interface EmbedStats {
   // Twitter/X (from public_metrics — impression_count NOT available via Bearer token)
@@ -146,15 +146,14 @@ export function PostEmbed({ url, platform: _platformHint, className = "", compac
   const statItems: { icon: React.ElementType; label: string; value: number | undefined; live?: boolean }[] = []
 
   if (platform === "x") {
-    if (stats?.view_count !== undefined) statItems.push({ icon: Eye, label: "Views", value: stats.view_count, live: true })
     if (stats?.like_count !== undefined) statItems.push({ icon: Heart, label: "Likes", value: stats.like_count })
-    if (stats?.retweet_count !== undefined) statItems.push({ icon: Repeat2, label: "Reposts", value: stats.retweet_count })
-    if (stats?.reply_count !== undefined) statItems.push({ icon: MessageCircle, label: "Replies", value: stats.reply_count })
-    if (stats?.quote_count !== undefined) statItems.push({ icon: Quote, label: "Quotes", value: stats.quote_count })
-  } else if (platform === "youtube") {
     if (stats?.view_count !== undefined) statItems.push({ icon: Eye, label: "Views", value: stats.view_count, live: true })
+    if (stats?.retweet_count !== undefined) statItems.push({ icon: Repeat2, label: "Retweets", value: stats.retweet_count })
+    if (stats?.reply_count !== undefined) statItems.push({ icon: MessageCircle, label: "Comments", value: stats.reply_count })
+  } else if (platform === "youtube") {
     if (stats?.like_count !== undefined) statItems.push({ icon: Heart, label: "Likes", value: stats.like_count })
     if (stats?.comment_count !== undefined) statItems.push({ icon: MessageCircle, label: "Comments", value: stats.comment_count })
+    if (stats?.view_count !== undefined) statItems.push({ icon: Eye, label: "Views", value: stats.view_count, live: true })
   }
 
   const hasStats = statItems.length > 0
