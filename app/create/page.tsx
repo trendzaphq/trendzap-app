@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
@@ -81,6 +81,8 @@ function InfoTooltip({ content, side = "top" }: { content: string; side?: "top" 
   )
 }
 
+const DRAFT_KEY = "tz_create_draft"
+
 export default function CreateMarketPage() {
   const router = useRouter()
   const { wallets } = useWallets()
@@ -90,6 +92,26 @@ export default function CreateMarketPage() {
   useEffect(() => {
     if (privyReady && !authenticated) login()
   }, [privyReady, authenticated, login])
+
+  // Track first render to prevent save effect from overwriting restore on mount
+  const draftSaveBlocked = useRef(true)
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY)
+      if (!saved) return
+      const d = JSON.parse(saved)
+      if (d.url) setUrl(d.url)
+      if (d.customTitle) setCustomTitle(d.customTitle)
+      if (d.metricCombos?.length) setMetricCombos(d.metricCombos)
+      if (d.deadline) setDeadline(d.deadline)
+      if (d.betAmount) setBetAmount(d.betAmount)
+      if (d.selectedPosition) setSelectedPosition(d.selectedPosition)
+      // Only restore up to "details" step — "risk"/"bet" depend on volatile analysis
+      if (d.step === "details") setStep("details")
+    } catch {}
+  }, [])
 
   const [step, setStep] = useState<Step>("url")
   const [url, setUrl] = useState("")
@@ -142,6 +164,16 @@ export default function CreateMarketPage() {
     const timer = setTimeout(() => setEmbedUrl(url.trim()), 800)
     return () => clearTimeout(timer)
   }, [url])
+
+  // Save draft to localStorage whenever form changes (skip first render to avoid stomping restore)
+  useEffect(() => {
+    if (draftSaveBlocked.current) { draftSaveBlocked.current = false; return }
+    if (step === "done") { localStorage.removeItem(DRAFT_KEY); return }
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, url, customTitle, metricCombos, deadline, betAmount, selectedPosition }))
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, url, customTitle, metricCombos, deadline, betAmount, selectedPosition])
 
   const getUrlError = (u: string): string | null => {
     if (!u.trim()) return null
@@ -266,10 +298,38 @@ export default function CreateMarketPage() {
     const hashes: string[] = []
 
     try {
+      await wallet.switchChain(43114)
       const ethereumProvider = await wallet.getEthereumProvider()
-      const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
+      const { BrowserProvider, Interface: EthersInterface, Contract, MaxUint256 } = await import("ethers")
       const provider = new BrowserProvider(ethereumProvider)
       const signer = await provider.getSigner()
+
+      // Check if the contract uses ERC20 settlement — if so, approve before any write
+      let isERC20 = false
+      try {
+        const marketContract = new Contract(
+          CONTRACTS.market,
+          ["function isTokenSettlement() view returns (bool)", "function settlementToken() view returns (address)"],
+          provider
+        )
+        isERC20 = await marketContract.isTokenSettlement()
+        if (isERC20) {
+          const tokenAddr: string = await marketContract.settlementToken()
+          const erc20 = new Contract(
+            tokenAddr,
+            ["function allowance(address,address) view returns (uint256)", "function approve(address,uint256) returns (bool)"],
+            signer
+          )
+          const betWei = parseEther(betAmount || "0.01")
+          const totalNeeded = betWei * BigInt(metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length)
+          const userAddress = await signer.getAddress()
+          const allowance: bigint = await erc20.allowance(userAddress, CONTRACTS.market)
+          if (allowance < totalNeeded) {
+            const approveTx = await erc20.approve(CONTRACTS.market, MaxUint256)
+            await approveTx.wait()
+          }
+        }
+      } catch { /* proceed as AVAX if settlement check fails */ }
 
       const now = Math.floor(Date.now() / 1000)
       const duration = DURATIONS[deadline] || 86400
@@ -303,7 +363,7 @@ export default function CreateMarketPage() {
           selectedPosition === "over",
         ])
 
-        const tx = await signer.sendTransaction({ to: CONTRACTS.market, data: txData, value: betWei.toString() })
+        const tx = await signer.sendTransaction({ to: CONTRACTS.market, data: txData, value: isERC20 ? "0" : betWei.toString() })
         hashes.push(tx.hash)
         await tx.wait()
 
@@ -863,6 +923,7 @@ export default function CreateMarketPage() {
                       Browse Markets
                     </Button>
                     <Button className="gap-2" onClick={() => {
+                      localStorage.removeItem(DRAFT_KEY)
                       setStep("url"); setUrl(""); setPreview(null); setTxHashes([])
                       setMetricCombos([{ id: "1", metric: "views", threshold: "" }])
                       setCustomTitle(""); setFollowerCount(null); setFollowerBlocked(false); setUrlError(null)

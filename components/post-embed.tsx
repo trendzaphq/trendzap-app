@@ -146,6 +146,7 @@ export function PostEmbed({ url, platform: _platformHint, className = "", compac
   const statItems: { icon: React.ElementType; label: string; value: number | undefined; live?: boolean }[] = []
 
   if (platform === "x") {
+    if (stats?.view_count !== undefined) statItems.push({ icon: Eye, label: "Views", value: stats.view_count, live: true })
     if (stats?.like_count !== undefined) statItems.push({ icon: Heart, label: "Likes", value: stats.like_count })
     if (stats?.retweet_count !== undefined) statItems.push({ icon: Repeat2, label: "Reposts", value: stats.retweet_count })
     if (stats?.reply_count !== undefined) statItems.push({ icon: MessageCircle, label: "Replies", value: stats.reply_count })
