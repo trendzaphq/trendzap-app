@@ -36,6 +36,20 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
   const activeWallet = wallets[0]
   const address = activeWallet?.address || user?.wallet?.address
 
+  // Auto-switch to Avalanche if wallet is on the wrong chain
+  useEffect(() => {
+    if (!activeWallet) return
+    const chainId = activeWallet.chainId
+    // chainId from Privy is "eip155:43114" format or numeric
+    const isAvalanche =
+      chainId === 43114 ||
+      chainId === "eip155:43114" ||
+      String(chainId) === "43114"
+    if (!isAvalanche) {
+      activeWallet.switchChain(43114).catch(() => {})
+    }
+  }, [activeWallet, activeWallet?.chainId])
+
   // Fetch AVAX balance
   useEffect(() => {
     if (!address) return
