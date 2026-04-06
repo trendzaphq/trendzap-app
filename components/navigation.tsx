@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Plus,
   TrendingUp,
+  Wallet,
 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import {
@@ -149,8 +150,9 @@ export function Navigation() {
               <Button
                 size="sm"
                 onClick={login}
-                className="md:hidden h-8 px-3 text-xs bg-primary hover:bg-primary/90 font-semibold"
+                className="md:hidden h-8 px-3 text-xs bg-primary hover:bg-primary/90 font-semibold gap-1.5"
               >
+                <Wallet className="h-3.5 w-3.5" />
                 Connect
               </Button>
             )}
