@@ -134,6 +134,9 @@ export default function CreateMarketPage() {
   const [betAmount, setBetAmount] = useState("0.1")
   const [selectedPosition, setSelectedPosition] = useState<"over" | "under">("over")
 
+  // Live stats from embed (used for risk check + threshold validation)
+  const [currentStats, setCurrentStats] = useState<Record<string, number | undefined> | null>(null)
+
   // Follower guard
   const [followerCount, setFollowerCount] = useState<number | null>(null)
   const [followerBlocked, setFollowerBlocked] = useState(false)
@@ -155,9 +158,10 @@ export default function CreateMarketPage() {
         /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be)/.test(u)
       )
     }
-    // Reset auto-title when URL changes
+    // Reset auto-title and stats when URL changes
     setAutoSuggestedTitle("")
     setAutoViralityNote("")
+    setCurrentStats(null)
     if (!url.trim() || !isValidPostUrl(url.trim())) {
       setEmbedUrl(null)
       return
@@ -199,6 +203,16 @@ export default function CreateMarketPage() {
 
   // Auto-called when embed loads — extracts post_text and generates AI title
   const handleEmbedData = async (data: EmbedData) => {
+    // Store live stats for risk assessment + threshold validation
+    if (data.stats) {
+      setCurrentStats({
+        views: data.stats.view_count,
+        likes: data.stats.like_count,
+        retweets: data.stats.retweet_count,
+        comments: data.stats.reply_count ?? data.stats.comment_count,
+      })
+    }
+
     // Follower count guard
     if (data.follower_count !== null && data.follower_count !== undefined) {
       setFollowerCount(data.follower_count)
@@ -264,6 +278,8 @@ export default function CreateMarketPage() {
   const checkRisk = async () => {
     setIsCheckingRisk(true)
     setRiskData(null)
+    const firstMetric = metricCombos[0]?.metric ?? "views"
+    const currentValue = currentStats?.[firstMetric] ?? 0
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_RISK_URL}/assess`, {
         method: "POST",
@@ -271,9 +287,9 @@ export default function CreateMarketPage() {
         body: JSON.stringify({
           url,
           platform: preview?.platform,
-          metric: metricCombos[0]?.metric,
+          metric: firstMetric,
           threshold: Number(metricCombos[0]?.threshold),
-          current_value: 0,
+          current_value: currentValue,
         }),
         signal: AbortSignal.timeout(8000),
       })
@@ -577,41 +593,70 @@ export default function CreateMarketPage() {
                       </span>
                     </div>
 
-                    {metricCombos.map((combo, idx) => (
-                      <div key={combo.id} className="flex items-center gap-2">
-                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-[10px] font-bold text-primary shrink-0">
-                          {idx + 1}
+                    {metricCombos.map((combo, idx) => {
+                      const cur = currentStats?.[combo.metric]
+                      const thr = Number(combo.threshold)
+                      const alreadyExceeded = combo.threshold && thr > 0 && cur !== undefined && thr <= cur
+                      const tooClose = !alreadyExceeded && combo.threshold && thr > 0 && cur !== undefined && thr < cur * 1.05
+                      return (
+                        <div key={combo.id} className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-[10px] font-bold text-primary shrink-0">
+                              {idx + 1}
+                            </div>
+                            <Select value={combo.metric} onValueChange={(v) => updateCombo(combo.id, "metric", v)}>
+                              <SelectTrigger className="w-[140px] shrink-0">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="views">Views</SelectItem>
+                                <SelectItem value="likes">Likes</SelectItem>
+                                <SelectItem value="retweets">Retweets</SelectItem>
+                                <SelectItem value="comments">Comments</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <span className="text-xs text-muted-foreground shrink-0">≥</span>
+                            <Input
+                              type="number"
+                              min="1"
+                              placeholder="e.g. 1000000"
+                              className={`font-mono flex-1 ${alreadyExceeded ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                              value={combo.threshold}
+                              onChange={(e) => updateCombo(combo.id, "threshold", e.target.value)}
+                            />
+                            {metricCombos.length > 1 && (
+                              <button
+                                onClick={() => removeCombo(combo.id)}
+                                className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                              >
+                                <XIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                          {/* Threshold vs current metric validation */}
+                          {alreadyExceeded ? (
+                            <div className="flex items-start gap-1.5 ml-7 text-xs text-destructive">
+                              <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                              <span>
+                                Already at <strong>{cur!.toLocaleString()}</strong> {combo.metric} — threshold of {thr.toLocaleString()} is already surpassed. OVER would win instantly. Set a higher threshold.
+                              </span>
+                            </div>
+                          ) : tooClose ? (
+                            <div className="flex items-start gap-1.5 ml-7 text-xs text-yellow-500">
+                              <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                              <span>
+                                Very close — post currently has {cur!.toLocaleString()} {combo.metric}. Market may resolve quickly.
+                              </span>
+                            </div>
+                          ) : cur !== undefined && combo.threshold && thr > 0 ? (
+                            <p className="ml-7 text-xs text-muted-foreground">
+                              Now: <span className="text-foreground font-mono">{cur.toLocaleString()}</span> — needs{" "}
+                              <span className="text-primary font-mono">{(thr - cur).toLocaleString()}</span> more {combo.metric} to hit threshold
+                            </p>
+                          ) : null}
                         </div>
-                        <Select value={combo.metric} onValueChange={(v) => updateCombo(combo.id, "metric", v)}>
-                          <SelectTrigger className="w-[140px] shrink-0">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="views">Views</SelectItem>
-                            <SelectItem value="likes">Likes</SelectItem>
-                            <SelectItem value="retweets">Retweets</SelectItem>
-                            <SelectItem value="comments">Comments</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <span className="text-xs text-muted-foreground shrink-0">≥</span>
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="e.g. 1000000"
-                          className="font-mono flex-1"
-                          value={combo.threshold}
-                          onChange={(e) => updateCombo(combo.id, "threshold", e.target.value)}
-                        />
-                        {metricCombos.length > 1 && (
-                          <button
-                            onClick={() => removeCombo(combo.id)}
-                            className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      )
+                    })}
 
                     {metricCombos.length < 4 && (
                       <button
@@ -649,7 +694,14 @@ export default function CreateMarketPage() {
                     <Button
                       className="flex-1 gap-2 font-semibold"
                       onClick={() => { setStep("risk"); checkRisk() }}
-                      disabled={!metricCombos.some(c => c.threshold && Number(c.threshold) > 0)}
+                      disabled={
+                        !metricCombos.some(c => c.threshold && Number(c.threshold) > 0) ||
+                        metricCombos.some(c => {
+                          const cur = currentStats?.[c.metric]
+                          const thr = Number(c.threshold)
+                          return c.threshold && thr > 0 && cur !== undefined && thr <= cur
+                        })
+                      }
                     >
                       Continue
                       <ArrowRight className="h-4 w-4" />
