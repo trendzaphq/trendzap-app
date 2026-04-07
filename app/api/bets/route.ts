@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { ensureSchema, getUserBets, sql } from "@/lib/db"
-import { formatEther } from "viem"
+
+const formatUsdc = (raw: string) => (Number(BigInt(raw)) / 1e6).toFixed(4)
 
 export async function GET(req: Request) {
   try {
@@ -42,7 +43,7 @@ export async function GET(req: Request) {
 
     for (const bet of bets) {
       const resolution = resolutions[bet.market_id]
-      const costAvax = parseFloat(formatEther(BigInt(bet.cost_wei))).toFixed(4)
+      const costAvax = formatUsdc(bet.cost_wei)
       const title = titles[bet.market_id] || `Market #${bet.market_id}`
 
       if (!resolution) {
@@ -58,7 +59,7 @@ export async function GET(req: Request) {
         // outcome: 1=OVER, 2=UNDER
         const betWon = (resolution.outcome === 1 && bet.is_over) || (resolution.outcome === 2 && !bet.is_over)
         const payout = claims[bet.market_id]
-          ? parseFloat(formatEther(BigInt(claims[bet.market_id]))).toFixed(4)
+          ? formatUsdc(claims[bet.market_id])
           : "0.0000"
         history.push({
           id: String(bet.id),

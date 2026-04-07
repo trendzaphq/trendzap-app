@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
     const notifications = rows.map((r) => {
       // outcome: 1 = OVER won, 0 = UNDER won
       const userWon = r.is_over ? r.outcome === 1 : r.outcome === 0
-      const betAvax = Number(BigInt(r.cost_wei)) / 1e18
-      const payoutAvax = r.payout_wei ? Number(BigInt(r.payout_wei)) / 1e18 : 0
+      const betAvax = Number(BigInt(r.cost_wei)) / 1e6
+      const payoutAvax = r.payout_wei ? Number(BigInt(r.payout_wei)) / 1e6 : 0
       const marketTitle = r.title || `Market #${r.market_id}`
 
       return {

@@ -45,6 +45,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const [showSuccess, setShowSuccess] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [meta, setMeta] = useState<{ title: string | null; thumbnail_url: string | null } | null>(null)
+  const [liveMetric, setLiveMetric] = useState<number>(0)
 
   useEffect(() => {
     fetch(`/api/markets/${numericId}`)
@@ -52,6 +53,21 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
       .then((data) => { if (data) setMeta(data) })
       .catch(() => {})
   }, [numericId])
+
+  // Fetch live metric from oracle
+  useEffect(() => {
+    if (!onChainMarket?.postUrl || !onChainMarket?.platform || !onChainMarket?.metricType) return
+    const fetchMetric = () => {
+      if (document.hidden) return
+      fetch(`/api/oracle/metrics?url=${encodeURIComponent(onChainMarket.postUrl)}&platform=${onChainMarket.platform}&metric=${onChainMarket.metricType}`)
+        .then((r) => r.json())
+        .then((d) => { if (d.ok && typeof d.value === "number") setLiveMetric(d.value) })
+        .catch(() => {})
+    }
+    fetchMetric()
+    const interval = setInterval(fetchMetric, 60_000)
+    return () => clearInterval(interval)
+  }, [onChainMarket?.postUrl, onChainMarket?.platform, onChainMarket?.metricType])
 
   // Fallback mock data for when contracts aren't deployed yet
   const mockMarket = {
@@ -79,7 +95,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
         title: meta?.title || `Will ${onChainMarket.postUrl} hit ${Number(onChainMarket.threshold).toLocaleString()} ${onChainMarket.metricType}?`,
         metric: onChainMarket.metricType.charAt(0).toUpperCase() + onChainMarket.metricType.slice(1),
         threshold: Number(onChainMarket.threshold),
-        currentValue: 0, // live metric from oracle — not on-chain
+        currentValue: liveMetric, // live metric from oracle
         overPool: onChainMarket.priceOver,
         underPool: onChainMarket.priceUnder,
         totalBets: 0,

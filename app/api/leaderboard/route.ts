@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { ensureSchema, getLeaderboard } from "@/lib/db"
-import { formatEther } from "viem"
+
+const formatUsdc = (raw: string | bigint) => Number(BigInt(raw)) / 1e6
 
 export async function GET(req: Request) {
   try {
@@ -17,8 +18,8 @@ export async function GET(req: Request) {
     const rows = await getLeaderboard(since)
 
     const entries = rows.map((row, i) => {
-      const costEth = parseFloat(formatEther(BigInt(row.total_cost_wei)))
-      const payoutEth = parseFloat(formatEther(BigInt(row.total_payout_wei)))
+      const costEth = formatUsdc(row.total_cost_wei)
+      const payoutEth = formatUsdc(row.total_payout_wei)
       const profit = payoutEth - costEth
       const totalBets = parseInt(row.total_bets)
       const wins = parseInt(row.wins)

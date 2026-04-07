@@ -157,8 +157,8 @@ export function useMarket(marketId: number) {
 
   useEffect(() => {
     fetchMarket()
-    // Poll every 15 seconds for live price updates
-    const interval = setInterval(fetchMarket, 15_000)
+    // Poll every 60 seconds — skip when tab is in background
+    const interval = setInterval(() => { if (!document.hidden) fetchMarket() }, 60_000)
     return () => clearInterval(interval)
   }, [fetchMarket])
 
@@ -578,6 +578,27 @@ export function useCreateMarket() {
           },
           duration: 8000,
         })
+
+        // Schedule oracle resolution job
+        try {
+          const client = getPublicClient()
+          const nextId = await client.readContract({ address: CONTRACTS.market as `0x${string}`, abi: MARKET_ABI, functionName: "nextMarketId" }) as bigint
+          const newMarketId = Number(nextId) - 1
+          await fetch("/api/oracle/schedule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              marketId: newMarketId,
+              postUrl: params.postUrl,
+              platform: PLATFORMS[params.platform] || "x",
+              metricType: METRIC_TYPES[params.metricType] || "views",
+              threshold: params.threshold.toString(),
+              resolutionTime: params.resolutionTime,
+            }),
+          })
+        } catch (scheduleErr) {
+          console.warn("[schedule] non-blocking error:", scheduleErr)
+        }
 
         return tx.hash
       } catch (err) {
