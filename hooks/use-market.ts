@@ -368,9 +368,9 @@ export function useBuyShares() {
         const value = parseSettlementAmount(amountAvax, settlement.decimals)
 
         const iface = new EthersInterface([
-          "function buyShares(uint256 marketId, bool isOver) payable returns (uint256)",
+          "function buyShares(uint256 marketId, bool isOver, uint256 amount) payable returns (uint256)",
         ])
-        const data = iface.encodeFunctionData("buyShares", [marketId, isOver])
+        const data = iface.encodeFunctionData("buyShares", [marketId, isOver, value])
 
         toast.loading("Transaction submitted — mining…", { id: toastId })
 

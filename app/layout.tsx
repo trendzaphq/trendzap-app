@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     "The prediction market for social media virality. Bet USDC on whether X posts and YouTube videos hit engagement thresholds. On-chain, auto-resolved, instant payouts.",
   keywords: [
     "prediction market", "crypto betting", "viral content", "social media betting",
-    "AVAX", "Avalanche", "TrendZap", "X Twitter bet", "YouTube viral", "DeFi",
+    "USDC", "Avalanche", "TrendZap", "X Twitter bet", "YouTube viral", "DeFi",
   ],
   openGraph: {
     type: "website",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     siteName: "TrendZap",
     title: "TrendZap — Bet on What Goes Viral",
     description:
-      "Prediction markets for viral content. Bet AVAX on X and YouTube posts, collect if you're right. 100% on-chain on Avalanche.",
+      "Prediction markets for viral content. Bet USDC on X and YouTube posts, collect if you're right. 100% on-chain on Avalanche.",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "TrendZap" }],
   },
   twitter: {
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     site: "@trendzaphq",
     creator: "@trendzaphq",
     title: "TrendZap — Bet on What Goes Viral",
-    description: "Prediction markets for viral content. Bet AVAX on X and YouTube posts.",
+    description: "Prediction markets for viral content. Bet USDC on X and YouTube posts.",
     images: ["/og-image.png"],
   },
   robots: { index: true, follow: true },
