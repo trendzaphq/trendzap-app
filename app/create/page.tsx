@@ -151,7 +151,6 @@ export default function CreateMarketPage() {
   const [creating, setCreating] = useState(false)
   const [creatingStep, setCreatingStep] = useState(0) // which combo is being created
   const [txHashes, setTxHashes] = useState<string[]>([])
-  const [error, setError] = useState<string | null>(null)
   const [urlError, setUrlError] = useState<string | null>(null)
 
   // Live embed — set after URL debounce (800ms) when it looks like a valid post URL
@@ -271,7 +270,6 @@ export default function CreateMarketPage() {
     const validationError = getUrlError(url)
     if (validationError) { setUrlError(validationError); return }
     setIsAnalyzing(true)
-    setError(null)
     const platform = detectPlatform(url)
     setPreview({
       platform,
@@ -315,14 +313,13 @@ export default function CreateMarketPage() {
 
   const createMarket = async () => {
     const wallet = wallets[0]
-    if (!wallet) { setError("Connect your wallet first"); return }
+    if (!wallet) { toast.error("Connect your wallet first"); return }
     const validCombos = metricCombos.filter(c => c.threshold && Number(c.threshold) > 0)
-    if (validCombos.length === 0) { setError("Set at least one threshold"); return }
-    if (!preview) { setError("Please analyze a URL first"); return }
-    if (Number(betAmount) < MIN_SEED) { setError(`Minimum seed bet is ${MIN_SEED} AVAX`); return }
+    if (validCombos.length === 0) { toast.error("Set at least one threshold"); return }
+    if (!preview) { toast.error("Please analyze a URL first"); return }
+    if (Number(betAmount) < MIN_SEED) { toast.error(`Minimum seed bet is ${MIN_SEED} AVAX`); return }
 
     setCreating(true)
-    setError(null)
     const hashes: string[] = []
     const toastId = toast.loading("Waiting for wallet confirmation…")
 
@@ -425,7 +422,6 @@ export default function CreateMarketPage() {
       })
     } catch (err) {
       const friendly = parseTxError(err)
-      setError(friendly)
       toast.error(friendly, { id: toastId, duration: 6000 })
     } finally {
       setCreating(false)
@@ -946,12 +942,6 @@ export default function CreateMarketPage() {
                       </span>
                     </div>
                   </div>
-
-                  {error && (
-                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
-                      {error}
-                    </div>
-                  )}
 
                   <div className="flex gap-3">
                     <Button variant="outline" onClick={() => setStep("risk")} className="gap-2 bg-transparent" disabled={creating}>

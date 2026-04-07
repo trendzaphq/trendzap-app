@@ -98,7 +98,6 @@ function ResolveDialog({
       onClose()
     } catch (e) {
       const friendly = parseTxError(e)
-      setError(friendly)
       toast.error(friendly, { id: toastId, duration: 6000 })
     } finally {
       setLoading(false)
@@ -121,7 +120,6 @@ function ResolveDialog({
           value={metricValue}
           onChange={(e) => setMetricValue(e.target.value)}
         />
-        {error && <p className="text-destructive text-xs">{error}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={resolve} disabled={loading || !metricValue}>
@@ -177,7 +175,6 @@ function CancelDialog({
       onClose()
     } catch (e) {
       const friendly = parseTxError(e)
-      setError(friendly)
       toast.error(friendly, { id: toastId, duration: 6000 })
     } finally {
       setLoading(false)
@@ -196,7 +193,6 @@ function CancelDialog({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
-        {error && <p className="text-destructive text-xs">{error}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Back</Button>
           <Button variant="destructive" onClick={cancel} disabled={loading}>
@@ -219,25 +215,24 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const [position, setPosition] = useState<"over" | "under">("over")
   const [title, setTitle] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<string | null>(null)
 
   const reset = () => {
     setUrl(""); setMetric("views"); setThreshold(""); setDeadline("24h")
-    setSeedAmount("0.001"); setPosition("over"); setTitle(""); setError(null); setTxHash(null)
+    setSeedAmount("0.001"); setPosition("over"); setTitle(""); setTxHash(null)
   }
 
   const create = async () => {
     if (!url.trim() || !threshold || Number(threshold) <= 0) {
-      setError("URL and threshold are required"); return
+      toast.error("URL and threshold are required"); return
     }
     const seed = Number(seedAmount)
-    if (isNaN(seed) || seed <= 0) { setError("Invalid seed amount"); return }
+    if (isNaN(seed) || seed <= 0) { toast.error("Invalid seed amount"); return }
 
     const wallet = wallets[0]
-    if (!wallet) { setError("Connect admin wallet first"); return }
+    if (!wallet) { toast.error("Connect admin wallet first"); return }
 
-    setLoading(true); setError(null)
+    setLoading(true)
     const toastId = toast.loading("Creating market…")
     try {
       await wallet.switchChain(43114)
@@ -299,7 +294,6 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
       } catch { /* metadata optional */ }
     } catch (e) {
       const friendly = parseTxError(e)
-      setError(friendly)
       toast.error(friendly, { id: toastId, duration: 6000 })
     } finally {
       setLoading(false)
@@ -307,7 +301,7 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose() } }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Create Market (Admin)</DialogTitle>
@@ -381,13 +375,12 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 <Input type="number" min="0.001" step="0.001" className="font-mono"
                   value={seedAmount} onChange={(e) => setSeedAmount(e.target.value)} />
               </div>
-              {error && <p className="text-xs text-destructive">{error}</p>}
             </>
           )}
         </div>
         {!txHash && (
           <DialogFooter>
-            <Button variant="outline" onClick={() => { reset(); onClose() }}>Cancel</Button>
+            <Button variant="outline" onClick={() => onClose()}>Cancel</Button>
             <Button onClick={create} disabled={loading || !url.trim() || !threshold}>
               {loading ? "Creating…" : "Create Market"}
             </Button>
