@@ -40,8 +40,6 @@ export function Leaderboard({ timeframe }: LeaderboardProps) {
 
   useEffect(() => {
     setLoading(true)
-    // Trigger a background sync then load leaderboard
-    fetch("/api/indexer/sync", { method: "GET" }).catch(() => {})
     fetch(`/api/leaderboard?timeframe=${timeframe}`)
       .then((r) => r.json())
       .then((data) => { if (data.ok) setLeaders(data.entries) })
