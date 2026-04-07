@@ -50,7 +50,7 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
     }
   }, [activeWallet, activeWallet?.chainId])
 
-  // Fetch AVAX balance
+  // Fetch native AVAX balance (needed for gas fees)
   useEffect(() => {
     if (!address) return
     const client = createPublicClient({
