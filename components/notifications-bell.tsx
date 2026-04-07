@@ -148,13 +148,13 @@ function NotificationItem({ n, onClose }: { n: Notification; onClose: () => void
             </span>
           )}
           <span className="text-[10px] text-muted-foreground">
-            {n.position} • bet {n.bet_avax.toFixed(3)} AVAX
+            {n.position} • bet {n.bet_avax.toFixed(3)} USDC
           </span>
         </div>
 
         {n.won && n.payout_avax > 0 && (
           <p className="text-[10px] text-green-500 font-semibold mt-0.5">
-            +{n.payout_avax.toFixed(4)} AVAX{n.claimed ? " (claimed)" : " — claim now →"}
+            +{n.payout_avax.toFixed(4)} USDC{n.claimed ? " (claimed)" : " — claim now →"}
           </p>
         )}
 

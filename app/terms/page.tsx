@@ -35,7 +35,7 @@ export default function TermsPage() {
           <div className="prose prose-invert prose-sm max-w-none space-y-8">
 
             <div className="p-4 rounded-xl border border-accent/30 bg-accent/5 text-sm text-accent">
-              <strong>Important:</strong> TrendZap markets involve real AVAX. By using this platform you acknowledge the financial risks and confirm you are of legal age in your jurisdiction.
+              <strong>Important:</strong> TrendZap markets involve real USDC. By using this platform you acknowledge the financial risks and confirm you are of legal age in your jurisdiction.
             </div>
 
             <Section title="1. Acceptance of Terms">
@@ -54,16 +54,16 @@ export default function TermsPage() {
             <Section title="3. How Markets Work">
               <p>Prediction markets on TrendZap operate as follows:</p>
               <ul>
-                <li><strong>Market Creation:</strong> Any authenticated user may create a market by posting a social media URL, choosing a metric (views, likes, etc.), a threshold, and a resolution time. A minimum seed bet of 0.01 AVAX is required.</li>
+                <li><strong>Market Creation:</strong> Any authenticated user may create a market by posting a social media URL, choosing a metric (views, likes, etc.), a threshold, and a resolution time. A minimum seed bet of 0.01 USDC is required.</li>
                 <li><strong>Betting:</strong> Users place bets on whether a post will be <em>Over</em> or <em>Under</em> the threshold at resolution time. Odds adjust via the LMSR mechanism.</li>
                 <li><strong>Resolution:</strong> At resolution time, our oracle reads the actual metric value from the social platform. If actual value ≥ threshold, OVER wins; otherwise UNDER wins.</li>
-                <li><strong>Payouts:</strong> Winners claim AVAX proportional to their shares. A 3% protocol fee is deducted from winnings.</li>
+                <li><strong>Payouts:</strong> Winners claim USDC proportional to their shares. A 3% protocol fee is deducted from winnings.</li>
               </ul>
             </Section>
 
             <Section title="4. Financial Risk Disclosure">
               <p>Prediction markets carry significant financial risk. You may lose the entire amount you bet. Past performance of other markets does not guarantee future results. TrendZap does not provide financial advice.</p>
-              <p>AVAX is a volatile cryptocurrency. The value of your winnings may fluctuate after payout due to market conditions outside TrendZap's control.</p>
+              <p>USDC is a stablecoin pegged to USD. While considered stable, you should be aware that stablecoins carry their own risks including regulatory and counterparty risk.</p>
             </Section>
 
             <Section title="5. Market Integrity">

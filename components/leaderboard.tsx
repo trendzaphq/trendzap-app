@@ -117,7 +117,7 @@ export function Leaderboard({ timeframe }: LeaderboardProps) {
 
                 <div className="font-bold text-lg mb-1">{leader.username}</div>
                 <div className={`text-2xl font-mono font-bold mb-2 ${leader.profit >= 0 ? "text-primary" : "text-destructive"}`}>
-                  {leader.profit >= 0 ? "+" : ""}{leader.profit.toFixed(3)} AVAX
+                  {leader.profit >= 0 ? "+" : ""}{leader.profit.toFixed(2)} USDC
                 </div>
                 <div className="text-sm text-muted-foreground">{leader.winRate}% win rate</div>
               </div>
@@ -161,7 +161,7 @@ export function Leaderboard({ timeframe }: LeaderboardProps) {
 
               <div className="text-right">
                 <div className={`text-xl font-mono font-bold ${leader.profit >= 0 ? "text-primary" : "text-destructive"}`}>
-                  {leader.profit >= 0 ? "+" : ""}{leader.profit.toFixed(3)} AVAX
+                  {leader.profit >= 0 ? "+" : ""}{leader.profit.toFixed(2)} USDC
                 </div>
                 <div className="text-xs text-muted-foreground">Profit</div>
               </div>

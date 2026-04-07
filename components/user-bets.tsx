@@ -91,7 +91,7 @@ export function UserBets() {
                       {bet.position === "over" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {bet.position}
                     </Badge>
-                    <span className="font-mono font-semibold">{bet.amount} AVAX</span>
+                    <span className="font-mono font-semibold">{bet.amount} USDC</span>
                   </div>
                   <a
                     href={`https://snowtrace.io/tx/${bet.tx_hash}`}
@@ -144,10 +144,10 @@ export function UserBets() {
                       {bet.position === "over" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {bet.position}
                     </Badge>
-                    <span className="font-mono">{bet.amount} AVAX</span>
+                    <span className="font-mono">{bet.amount} USDC</span>
                   </div>
                   <div className={`font-mono font-semibold ${bet.result === "won" ? "text-primary" : "text-destructive"}`}>
-                    {bet.result === "won" ? `+${bet.payout}` : `-${bet.amount}`} AVAX
+                    {bet.result === "won" ? `+${bet.payout}` : `-${bet.amount}`} USDC
                   </div>
                 </div>
               </div>

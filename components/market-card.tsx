@@ -151,7 +151,7 @@ export function MarketCard({
             {volNum > 0 && (
               <span className="flex items-center gap-1">
                 <Zap className="h-3 w-3" />
-                {volNum.toFixed(3)} AVAX
+                {volNum.toFixed(2)} USDC
               </span>
             )}
             {creator && (

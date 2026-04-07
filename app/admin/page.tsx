@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { usePrivy, useWallets } from "@privy-io/react-auth"
-import { parseEther } from "viem"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,7 +23,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { useMarketList, type MarketData } from "@/hooks/use-market"
+import { useMarketList, type MarketData, getSettlementInfo, parseSettlementAmount } from "@/hooks/use-market"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
 import { toast } from "sonner"
 import { parseTxError } from "@/lib/tx-error"
@@ -236,9 +235,33 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
     const toastId = toast.loading("Creating market…")
     try {
       await wallet.switchChain(43114)
-      const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
+      const { BrowserProvider, Contract, MaxUint256, Interface: EthersInterface } = await import("ethers")
       const provider = new BrowserProvider(await wallet.getEthereumProvider())
       const signer = await provider.getSigner()
+
+      // Get settlement token info (USDC 6 decimals or native AVAX 18)
+      const settlement = await getSettlementInfo(provider)
+      const betAmount = parseSettlementAmount(seedAmount || "0.001", settlement.decimals)
+
+      // If ERC20, ensure allowance
+      if (settlement.isERC20) {
+        const erc20 = new Contract(
+          settlement.tokenAddress,
+          [
+            "function allowance(address,address) view returns (uint256)",
+            "function approve(address,uint256) returns (bool)",
+          ],
+          signer
+        )
+        const userAddr = await signer.getAddress()
+        const allowance: bigint = await erc20.allowance(userAddr, CONTRACTS.market)
+        if (allowance < betAmount) {
+          toast.loading("Approving USDC…", { id: toastId })
+          const approveTx = await erc20.approve(CONTRACTS.market, MaxUint256)
+          await approveTx.wait()
+          toast.loading("Creating market…", { id: toastId })
+        }
+      }
 
       const now = Math.floor(Date.now() / 1000)
       const duration = DURATIONS[deadline] ?? 86400
@@ -250,17 +273,16 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
       const iface = new EthersInterface([
         "function createMarket(tuple(string postUrl, uint8 platform, uint8 metricType, uint256 threshold, uint256 startTime, uint256 endTime, uint256 resolutionTime) params, uint256 initialBet, bool betOnOver) payable returns (uint256)",
       ])
-      const betWei = parseEther(seedAmount || "0.001")
 
       const tx = await signer.sendTransaction({
         to: CONTRACTS.market,
         data: iface.encodeFunctionData("createMarket", [
           [url, PLATFORM_MAP[platform] ?? 0, METRIC_MAP[metric] ?? 1,
            BigInt(threshold).toString(), startTime, endTime, resolutionTime],
-          betWei.toString(),
+          betAmount.toString(),
           position === "over",
         ]),
-        value: betWei.toString(),
+        value: settlement.isERC20 ? "0" : betAmount.toString(),
       })
       await tx.wait()
       setTxHash(tx.hash)
@@ -371,7 +393,7 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Seed AVAX <span className="text-xs text-muted-foreground">(min 0.001 — admin bypass)</span></Label>
+                <Label>Seed Amount <span className="text-xs text-muted-foreground">(USDC — min 0.001)</span></Label>
                 <Input type="number" min="0.001" step="0.001" className="font-mono"
                   value={seedAmount} onChange={(e) => setSeedAmount(e.target.value)} />
               </div>
@@ -550,7 +572,7 @@ export default function AdminPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Volume</CardTitle></CardHeader>
-          <CardContent><p className="text-3xl font-bold">{totalVolumeEth} <span className="text-sm font-normal">AVAX</span></p></CardContent>
+          <CardContent><p className="text-3xl font-bold">{totalVolumeEth} <span className="text-sm font-normal">USDC</span></p></CardContent>
         </Card>
       </section>
 
@@ -616,7 +638,7 @@ export default function AdminPage() {
                       </TableCell>
                       <TableCell className="capitalize text-xs">{m.metricType}</TableCell>
                       <TableCell className="text-xs font-mono">{m.threshold.toString()}</TableCell>
-                      <TableCell className="text-xs">{m.totalVolume} AVAX</TableCell>
+                      <TableCell className="text-xs">{m.totalVolume} USDC</TableCell>
                       <TableCell className="text-xs">
                         {endDate.toLocaleDateString()} {endDate.toLocaleTimeString()}
                       </TableCell>

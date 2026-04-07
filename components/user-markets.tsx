@@ -69,7 +69,7 @@ export function UserMarkets() {
                 </div>
                 <div className="flex items-center gap-1">
                   <Zap className="h-4 w-4" />
-                  <span className="font-mono">{parseFloat(market.totalVolume).toFixed(3)} AVAX</span>
+                  <span className="font-mono">{parseFloat(market.totalVolume).toFixed(2)} USDC</span>
                 </div>
               </div>
             </Link>

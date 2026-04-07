@@ -36,7 +36,7 @@ export interface MarketData {
   resolutionTime: number
   priceOver: number // 0–100 (percent)
   priceUnder: number
-  totalVolume: string // formatted AVAX
+  totalVolume: string // formatted settlement token amount
   poolBalance: string
   status: string
   outcome: string
@@ -67,6 +67,36 @@ function getPublicClient(): PublicClient {
   return _publicClient
 }
 
+// ─── Cached settlement decimals for read-only formatting ──
+let _readDecimals: number | null = null
+
+async function getReadDecimals(): Promise<number> {
+  if (_readDecimals !== null) return _readDecimals
+  const client = getPublicClient()
+  try {
+    const isToken = await client.readContract({
+      address: CONTRACTS.market,
+      abi: MARKET_ABI,
+      functionName: "isTokenSettlement",
+    }) as boolean
+    if (!isToken) { _readDecimals = 18; return 18 }
+    const tokenAddr = await client.readContract({
+      address: CONTRACTS.market,
+      abi: MARKET_ABI,
+      functionName: "settlementToken",
+    }) as `0x${string}`
+    const decimals = await client.readContract({
+      address: tokenAddr,
+      abi: [{ name: "decimals", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] }],
+      functionName: "decimals",
+    }) as number
+    _readDecimals = Number(decimals)
+  } catch {
+    _readDecimals = 18
+  }
+  return _readDecimals
+}
+
 // ─── useMarket: read a single market ─────────────────────
 
 export function useMarket(marketId: number) {
@@ -78,6 +108,7 @@ export function useMarket(marketId: number) {
     try {
       setLoading(true)
       const client = getPublicClient()
+      const decimals = await getReadDecimals()
 
       const [raw, prices] = await Promise.all([
         client.readContract({
@@ -108,8 +139,8 @@ export function useMarket(marketId: number) {
         resolutionTime: Number(raw.params.resolutionTime),
         priceOver: pOver,
         priceUnder: pUnder,
-        totalVolume: formatEther(raw.state.totalVolume),
-        poolBalance: formatEther(raw.state.poolBalance),
+        totalVolume: formatSettlementAmount(raw.state.totalVolume, decimals),
+        poolBalance: formatSettlementAmount(raw.state.poolBalance, decimals),
         status: MARKET_STATUS[Number(raw.status)] ?? "PENDING",
         outcome: OUTCOMES[Number(raw.outcome)] ?? "NONE",
         resolvedValue: raw.resolvedValue,
@@ -144,6 +175,7 @@ export function useMarketList() {
     async function load() {
       try {
         const client = getPublicClient()
+        const decimals = await getReadDecimals()
         const nextId = (await client.readContract({
           address: CONTRACTS.market,
           abi: MARKET_ABI,
@@ -190,8 +222,8 @@ export function useMarketList() {
               resolutionTime: Number(raw.params.resolutionTime),
               priceOver: pOver,
               priceUnder: pUnder,
-              totalVolume: formatEther(raw.state.totalVolume),
-              poolBalance: formatEther(raw.state.poolBalance),
+              totalVolume: formatSettlementAmount(raw.state.totalVolume, decimals),
+              poolBalance: formatSettlementAmount(raw.state.poolBalance, decimals),
               status: MARKET_STATUS[Number(raw.status)] ?? "PENDING",
               outcome: OUTCOMES[Number(raw.outcome)] ?? "NONE",
               resolvedValue: raw.resolvedValue,
@@ -221,11 +253,22 @@ export function useMarketList() {
 }
 
 // ─── ERC20 Settlement Helper ──────────────────────────────
-// Returns true if contract uses ERC20 settlement (and handles approval),
-// false if native AVAX. Call before any write to the market contract.
+// Returns settlement info: { isERC20, decimals, tokenSymbol }.
+// If ERC20, also ensures the market contract has sufficient allowance.
 
-async function ensureSettlementAllowance(provider: any, signer: any, amount: bigint): Promise<boolean> {
-  const { Contract, MaxUint256 } = await import("ethers")
+export interface SettlementInfo {
+  isERC20: boolean
+  decimals: number
+  tokenSymbol: string
+  tokenAddress: string
+}
+
+// Cache so we don't re-query every tx
+let _settlementCache: SettlementInfo | null = null
+
+export async function getSettlementInfo(provider: any): Promise<SettlementInfo> {
+  if (_settlementCache) return _settlementCache
+  const { Contract } = await import("ethers")
   const contract = new Contract(
     CONTRACTS.market,
     [
@@ -235,10 +278,51 @@ async function ensureSettlementAllowance(provider: any, signer: any, amount: big
     provider
   )
   const isERC20: boolean = await contract.isTokenSettlement()
-  if (!isERC20) return false
+  if (!isERC20) {
+    _settlementCache = { isERC20: false, decimals: 18, tokenSymbol: "AVAX", tokenAddress: "" }
+    return _settlementCache
+  }
   const tokenAddr: string = await contract.settlementToken()
   const erc20 = new Contract(
     tokenAddr,
+    [
+      "function decimals() view returns (uint8)",
+      "function symbol() view returns (string)",
+    ],
+    provider
+  )
+  const [decimals, symbol] = await Promise.all([erc20.decimals(), erc20.symbol()])
+  _settlementCache = { isERC20: true, decimals: Number(decimals), tokenSymbol: symbol, tokenAddress: tokenAddr }
+  return _settlementCache
+}
+
+/** Parse a human-readable amount (e.g. "0.5") into on-chain units using the settlement token's decimals. */
+export function parseSettlementAmount(amount: string, decimals: number): bigint {
+  if (decimals === 18) return parseEther(amount)
+  // For tokens with non-18 decimals (e.g. USDC with 6)
+  const parts = amount.split(".")
+  const whole = parts[0] || "0"
+  let frac = (parts[1] || "").slice(0, decimals).padEnd(decimals, "0")
+  return BigInt(whole) * BigInt(10 ** decimals) + BigInt(frac)
+}
+
+/** Format on-chain units back to a human-readable string. */
+export function formatSettlementAmount(raw: bigint, decimals: number): string {
+  if (decimals === 18) return formatEther(raw)
+  const divisor = BigInt(10 ** decimals)
+  const whole = raw / divisor
+  const frac = raw % divisor
+  const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "")
+  return fracStr ? `${whole}.${fracStr}` : whole.toString()
+}
+
+async function ensureSettlementAllowance(provider: any, signer: any, amount: bigint): Promise<SettlementInfo> {
+  const info = await getSettlementInfo(provider)
+  if (!info.isERC20) return info
+
+  const { Contract, MaxUint256 } = await import("ethers")
+  const erc20 = new Contract(
+    info.tokenAddress,
     [
       "function allowance(address owner, address spender) view returns (uint256)",
       "function approve(address spender, uint256 amount) returns (bool)",
@@ -251,7 +335,7 @@ async function ensureSettlementAllowance(provider: any, signer: any, amount: big
     const approveTx = await erc20.approve(CONTRACTS.market, MaxUint256)
     await approveTx.wait()
   }
-  return true
+  return info
 }
 
 // ─── useBuyShares: write (requires wallet) ────────────────
@@ -279,9 +363,9 @@ export function useBuyShares() {
         const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
         const provider = new BrowserProvider(ethereumProvider)
         const signer = await provider.getSigner()
-        const value = parseEther(amountAvax)
 
-        const isERC20 = await ensureSettlementAllowance(provider, signer, value)
+        const settlement = await ensureSettlementAllowance(provider, signer, parseSettlementAmount(amountAvax, (await getSettlementInfo(provider)).decimals))
+        const value = parseSettlementAmount(amountAvax, settlement.decimals)
 
         const iface = new EthersInterface([
           "function buyShares(uint256 marketId, bool isOver) payable returns (uint256)",
@@ -293,7 +377,7 @@ export function useBuyShares() {
         const tx = await signer.sendTransaction({
           to: CONTRACTS.market,
           data,
-          value: isERC20 ? "0" : value.toString(),
+          value: settlement.isERC20 ? "0" : value.toString(),
         })
 
         setTxHash(tx.hash)
@@ -301,7 +385,7 @@ export function useBuyShares() {
 
         toast.success("Bet placed successfully! ⚡", {
           id: toastId,
-          description: `${amountAvax} AVAX on ${isOver ? "Over" : "Under"}`,
+          description: `${amountAvax} ${settlement.tokenSymbol} on ${isOver ? "Over" : "Under"}`,
           action: {
             label: "View tx",
             onClick: () => window.open(`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://snowtrace.io"}/tx/${tx.hash}`, "_blank"),
@@ -358,7 +442,7 @@ export function useClaimWinnings() {
 
         toast.success("Winnings claimed! 🏆", {
           id: toastId,
-          description: "AVAX has been sent to your wallet.",
+          description: "USDC has been sent to your wallet.",
           action: {
             label: "View tx",
             onClick: () => window.open(`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://snowtrace.io"}/tx/${tx.hash}`, "_blank"),
@@ -434,7 +518,7 @@ export function useCreateMarket() {
       startTime: number
       endTime: number
       resolutionTime: number
-      initialBet: string // in AVAX
+      initialBet: string // in USDC
       betOnOver: boolean
     }) => {
       const wallet = wallets[0]
@@ -452,9 +536,9 @@ export function useCreateMarket() {
         const { BrowserProvider, Interface: EthersInterface } = await import("ethers")
         const provider = new BrowserProvider(ethereumProvider)
         const signer = await provider.getSigner()
-        const value = parseEther(params.initialBet)
 
-        const isERC20 = await ensureSettlementAllowance(provider, signer, value)
+        const settlement = await ensureSettlementAllowance(provider, signer, parseSettlementAmount(params.initialBet, (await getSettlementInfo(provider)).decimals))
+        const value = parseSettlementAmount(params.initialBet, settlement.decimals)
 
         const iface = new EthersInterface([
           "function createMarket(tuple(string postUrl, uint8 platform, uint8 metricType, uint256 threshold, uint256 startTime, uint256 endTime, uint256 resolutionTime) params, uint256 initialBet, bool betOnOver) payable returns (uint256)",
@@ -479,7 +563,7 @@ export function useCreateMarket() {
         const tx = await signer.sendTransaction({
           to: CONTRACTS.market,
           data,
-          value: isERC20 ? "0" : value.toString(),
+          value: settlement.isERC20 ? "0" : value.toString(),
         })
 
         setTxHash(tx.hash)
