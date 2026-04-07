@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const ORACLE_URL = process.env.ORACLE_URL || "https://trendzap-oracle-production.up.railway.app"
+const ORACLE_URL = process.env.ORACLE_URL || process.env.NEXT_PUBLIC_ORACLE_URL || "https://trendzap-oracle-production.up.railway.app"
 
 const PLATFORM_MAP: Record<string, string> = {
   x: "twitter",
