@@ -20,6 +20,8 @@ import {
   MARKET_STATUS,
   OUTCOMES,
 } from "@/lib/contracts"
+import { toast } from "sonner"
+import { parseTxError } from "@/lib/tx-error"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -269,6 +271,8 @@ export function useBuyShares() {
       setError(null)
       setTxHash(null)
 
+      const toastId = toast.loading("Waiting for wallet confirmation…")
+
       try {
         await wallet.switchChain(43114)
         const ethereumProvider = await wallet.getEthereumProvider()
@@ -284,6 +288,8 @@ export function useBuyShares() {
         ])
         const data = iface.encodeFunctionData("buyShares", [marketId, isOver])
 
+        toast.loading("Transaction submitted — mining…", { id: toastId })
+
         const tx = await signer.sendTransaction({
           to: CONTRACTS.market,
           data,
@@ -292,10 +298,22 @@ export function useBuyShares() {
 
         setTxHash(tx.hash)
         await tx.wait()
+
+        toast.success("Bet placed successfully! ⚡", {
+          id: toastId,
+          description: `${amountAvax} AVAX on ${isOver ? "Over" : "Under"}`,
+          action: {
+            label: "View tx",
+            onClick: () => window.open(`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://snowtrace.io"}/tx/${tx.hash}`, "_blank"),
+          },
+          duration: 8000,
+        })
+
         return tx.hash
       } catch (err) {
-        const msg = (err as Error).message
-        setError(msg)
+        const friendly = parseTxError(err)
+        setError(friendly)
+        toast.error(friendly, { id: toastId, duration: 6000 })
         throw err
       } finally {
         setLoading(false)
@@ -319,6 +337,7 @@ export function useClaimWinnings() {
       if (!wallet) throw new Error("Connect wallet first")
 
       setLoading(true)
+      const toastId = toast.loading("Claiming your winnings…")
       try {
         await wallet.switchChain(43114)
         const ethereumProvider = await wallet.getEthereumProvider()
@@ -336,7 +355,22 @@ export function useClaimWinnings() {
           data,
         })
         await tx.wait()
+
+        toast.success("Winnings claimed! 🏆", {
+          id: toastId,
+          description: "AVAX has been sent to your wallet.",
+          action: {
+            label: "View tx",
+            onClick: () => window.open(`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://snowtrace.io"}/tx/${tx.hash}`, "_blank"),
+          },
+          duration: 8000,
+        })
+
         return tx.hash
+      } catch (err) {
+        const friendly = parseTxError(err)
+        toast.error(friendly, { id: toastId, duration: 6000 })
+        throw err
       } finally {
         setLoading(false)
       }
@@ -410,6 +444,8 @@ export function useCreateMarket() {
       setError(null)
       setTxHash(null)
 
+      const toastId = toast.loading("Waiting for wallet confirmation…")
+
       try {
         await wallet.switchChain(43114)
         const ethereumProvider = await wallet.getEthereumProvider()
@@ -438,6 +474,8 @@ export function useCreateMarket() {
           params.betOnOver,
         ])
 
+        toast.loading("Transaction submitted — mining…", { id: toastId })
+
         const tx = await signer.sendTransaction({
           to: CONTRACTS.market,
           data,
@@ -446,10 +484,22 @@ export function useCreateMarket() {
 
         setTxHash(tx.hash)
         await tx.wait()
+
+        toast.success("Market created! 🚀", {
+          id: toastId,
+          description: "Your prediction market is now live.",
+          action: {
+            label: "View tx",
+            onClick: () => window.open(`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://snowtrace.io"}/tx/${tx.hash}`, "_blank"),
+          },
+          duration: 8000,
+        })
+
         return tx.hash
       } catch (err) {
-        const msg = (err as Error).message
-        setError(msg?.slice(0, 200))
+        const friendly = parseTxError(err)
+        setError(friendly)
+        toast.error(friendly, { id: toastId, duration: 6000 })
         throw err
       } finally {
         setLoading(false)

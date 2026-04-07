@@ -23,7 +23,6 @@ import {
 import { useMarket, useBuyShares, useClaimWinnings, useUserPosition } from "@/hooks/use-market"
 import { useCountdown } from "@/hooks/use-countdown"
 import { formatEther } from "viem"
-import { EXPLORER_URL } from "@/lib/contracts"
 import { OddsChart } from "@/components/odds-chart"
 import { ShareToX } from "@/components/share-to-x"
 import { BetConfirmModal } from "@/components/bet-confirm-modal"
@@ -36,7 +35,7 @@ interface MarketDetailViewProps {
 export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const numericId = parseInt(marketId, 10)
   const { market: onChainMarket, loading: marketLoading, refetch } = useMarket(numericId)
-  const { buyShares, txHash, loading: buyLoading, error: buyError } = useBuyShares()
+  const { buyShares, loading: buyLoading } = useBuyShares()
   const { claim, loading: claimLoading } = useClaimWinnings()
   const position = useUserPosition(numericId)
   const countdown = useCountdown(onChainMarket?.endTime || 0)
@@ -133,8 +132,12 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   }
 
   const handleClaim = async () => {
-    await claim(numericId)
-    refetch()
+    try {
+      await claim(numericId)
+      refetch()
+    } catch {
+      // error toast is handled by useClaimWinnings
+    }
   }
 
   const isResolved = market.status === "RESOLVED"
@@ -284,40 +287,18 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <h3 className="text-lg font-semibold mb-4">{"Place Your Bet"}</h3>
 
             {showSuccess && (
-              <div className="mb-4 p-4 bg-primary/10 border border-primary/20 rounded-lg animate-slide-up">
-                <div className="flex items-center gap-2 text-primary">
-                  <Zap className="h-5 w-5 fill-primary" />
-                  <span className="font-semibold">{"Bet placed successfully!"}</span>
-                </div>
-                {txHash && (
-                  <a
-                    href={`${EXPLORER_URL}/tx/${txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-muted-foreground underline mt-1 block"
-                  >
-                    View on Explorer
-                  </a>
-                )}
-                <div className="mt-3">
-                  <ShareToX
-                    marketId={numericId}
-                    title={market.title}
-                    platform={market.platform}
-                    metric={market.metric}
-                    threshold={market.threshold}
-                    betAmount={betAmount}
-                    position={selectedPosition ?? undefined}
-                    variant="outline"
-                    size="sm"
-                  />
-                </div>
-              </div>
-            )}
-
-            {buyError && (
-              <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <span className="text-destructive text-sm">{buyError.slice(0, 120)}</span>
+              <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg animate-slide-up">
+                <ShareToX
+                  marketId={numericId}
+                  title={market.title}
+                  platform={market.platform}
+                  metric={market.metric}
+                  threshold={market.threshold}
+                  betAmount={betAmount}
+                  position={selectedPosition ?? undefined}
+                  variant="outline"
+                  size="sm"
+                />
               </div>
             )}
 
