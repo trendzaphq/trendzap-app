@@ -18,6 +18,8 @@ import {
 } from "lucide-react"
 import { PostEmbed, type EmbedData } from "@/components/post-embed"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { toast } from "sonner"
+import { parseTxError } from "@/lib/tx-error"
 
 const PLATFORM_MAP: Record<string, number> = { twitter: 0, x: 0, youtube: 1, tiktok: 2, instagram: 3 }
 const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
@@ -87,6 +89,10 @@ export default function CreateMarketPage() {
   const router = useRouter()
   const { wallets } = useWallets()
   const { ready: privyReady, authenticated, login } = usePrivy()
+
+  // Admin bypass — lower seed minimum for admin wallet
+  const isAdmin = wallets[0]?.address?.toLowerCase() === "0x05394029ea22767d2283bcd0be03b13353781212"
+  const MIN_SEED = isAdmin ? 0.001 : 0.05
 
   // Auth guard — open login modal immediately if unauthenticated
   useEffect(() => {
@@ -312,11 +318,12 @@ export default function CreateMarketPage() {
     const validCombos = metricCombos.filter(c => c.threshold && Number(c.threshold) > 0)
     if (validCombos.length === 0) { setError("Set at least one threshold"); return }
     if (!preview) { setError("Please analyze a URL first"); return }
-    if (Number(betAmount) < 0.05) { setError("Minimum seed bet is 0.05 AVAX"); return }
+    if (Number(betAmount) < MIN_SEED) { setError(`Minimum seed bet is ${MIN_SEED} AVAX`); return }
 
     setCreating(true)
     setError(null)
     const hashes: string[] = []
+    const toastId = toast.loading("Waiting for wallet confirmation…")
 
     try {
       await wallet.switchChain(43114)
@@ -410,8 +417,15 @@ export default function CreateMarketPage() {
 
       setTxHashes(hashes)
       setStep("done")
+      toast.success(hashes.length === 1 ? "Market created! \u26A1" : `${hashes.length} markets created! \u26A1`, {
+        id: toastId,
+        description: "Your prediction market is now live.",
+        duration: 6000,
+      })
     } catch (err) {
-      setError((err as Error).message?.slice(0, 200) || "Transaction failed")
+      const friendly = parseTxError(err)
+      setError(friendly)
+      toast.error(friendly, { id: toastId, duration: 6000 })
     } finally {
       setCreating(false)
       setCreatingStep(0)
@@ -432,9 +446,20 @@ export default function CreateMarketPage() {
             <button onClick={() => router.push("/")} className="text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Create a Prediction Market</h1>
-              <p className="text-sm text-muted-foreground">Turn viral content into a prediction market in under a minute</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight">Create a Prediction Market</h1>
+                {isAdmin && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">
+                    Admin
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {isAdmin
+                  ? "Admin mode — reduced seed minimum (0.001 AVAX)"
+                  : "Turn viral content into a prediction market in under a minute"}
+              </p>
             </div>
           </div>
 
@@ -444,20 +469,25 @@ export default function CreateMarketPage() {
               <div className="flex items-center gap-0">
                 {STEPS.map((s, i) => (
                   <div key={s.id} className="flex items-center">
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                      i === stepIndex
-                        ? "bg-primary text-primary-foreground"
-                        : i < stepIndex
-                        ? "bg-primary/20 text-primary"
-                        : "bg-muted/40 text-muted-foreground"
-                    }`}>
+                    <button
+                      type="button"
+                      onClick={() => { if (i < stepIndex) setStep(s.id) }}
+                      disabled={i > stepIndex}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                        i === stepIndex
+                          ? "bg-primary text-primary-foreground"
+                          : i < stepIndex
+                          ? "bg-primary/20 text-primary hover:bg-primary/30 cursor-pointer"
+                          : "bg-muted/40 text-muted-foreground cursor-default"
+                      }`}
+                    >
                       {i < stepIndex ? (
                         <CheckCircle2 className="h-3.5 w-3.5" />
                       ) : (
                         <span className="h-3.5 w-3.5 flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
                       )}
                       <span className="hidden sm:inline">{s.label}</span>
-                    </div>
+                    </button>
                     {i < STEPS.length - 1 && (
                       <div className={`h-px w-6 mx-1 ${i < stepIndex ? "bg-primary/40" : "bg-border/40"}`} />
                     )}
@@ -799,7 +829,7 @@ export default function CreateMarketPage() {
                 <div className="rounded-2xl border border-border/50 bg-card p-6 space-y-5">
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold">Seed Your Market</h2>
-                    <p className="text-sm text-muted-foreground">Place the first bet to activate the market. Minimum 0.05 AVAX.</p>
+                    <p className="text-sm text-muted-foreground">Place the first bet to activate the market. Minimum {MIN_SEED} AVAX.</p>
                   </div>
 
                   {/* Bet amount */}
@@ -811,21 +841,21 @@ export default function CreateMarketPage() {
                     <Input
                       id="bet-amount"
                       type="number"
-                      min="0.05"
-                      step="0.01"
-                      placeholder="0.1"
+                      min={MIN_SEED}
+                      step={isAdmin ? "0.001" : "0.01"}
+                      placeholder={isAdmin ? "0.001" : "0.1"}
                       value={betAmount}
                       onChange={(e) => setBetAmount(e.target.value)}
-                      className={`h-11 text-lg font-mono ${Number(betAmount) > 0 && Number(betAmount) < 0.05 ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      className={`h-11 text-lg font-mono ${Number(betAmount) > 0 && Number(betAmount) < MIN_SEED ? "border-destructive focus-visible:ring-destructive" : ""}`}
                     />
-                    {Number(betAmount) > 0 && Number(betAmount) < 0.05 && (
+                    {Number(betAmount) > 0 && Number(betAmount) < MIN_SEED && (
                       <p className="text-xs text-destructive flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3 shrink-0" />
-                        Minimum seed bet is 0.05 AVAX to ensure enough initial liquidity.
+                        Minimum seed bet is {MIN_SEED} AVAX{isAdmin ? "" : " to ensure enough initial liquidity"}.
                       </p>
                     )}
                     <div className="flex gap-1.5">
-                      {["0.05", "0.1", "0.25", "0.5", "1"].map((a) => (
+                      {(isAdmin ? ["0.001", "0.01", "0.05", "0.1"] : ["0.05", "0.1", "0.25", "0.5", "1"]).map((a) => (
                         <button
                           key={a}
                           onClick={() => setBetAmount(a)}
@@ -930,7 +960,7 @@ export default function CreateMarketPage() {
                     <Button
                       className="flex-1 h-12 gap-2 font-semibold text-base"
                       onClick={createMarket}
-                      disabled={creating || !wallets[0] || !metricCombos.some(c => c.threshold && Number(c.threshold) > 0) || Number(betAmount) < 0.05}
+                      disabled={creating || !wallets[0] || !metricCombos.some(c => c.threshold && Number(c.threshold) > 0) || Number(betAmount) < MIN_SEED}
                     >
                       {creating ? (
                         <><Loader2 className="h-5 w-5 animate-spin" />
@@ -1014,7 +1044,7 @@ export default function CreateMarketPage() {
                         { icon: Link2, title: "1. Paste a URL", desc: "Drop any public X (Twitter) or YouTube post link." },
                         { icon: Sparkles, title: "2. AI analyzes it", desc: "The AI reads your post and auto-generates a market title + virality assessment." },
                         { icon: ShieldCheck, title: "3. Risk check", desc: "Our risk engine flags unusual setups before you go live." },
-                        { icon: Zap, title: "4. Seed with AVAX", desc: "Place at least 0.01 AVAX to activate the market on-chain." },
+                        { icon: Zap, title: "4. Seed with AVAX", desc: `Place at least ${MIN_SEED} AVAX to activate the market on-chain.` },
                       ].map(({ icon: Icon, title, desc }) => (
                         <div key={title} className="flex items-start gap-3">
                           <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 shrink-0 mt-0.5">

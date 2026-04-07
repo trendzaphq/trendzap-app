@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { PrivyClientProvider } from "@/components/providers/privy-provider"
 import { CreateMarketFab } from "@/components/create-market-fab"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
+import { Toaster } from "sonner"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -64,6 +65,17 @@ export default function RootLayout({
           {children}
           <CreateMarketFab />
           <MobileBottomNav />
+          <Toaster
+            theme="dark"
+            position="top-right"
+            richColors
+            closeButton
+            toastOptions={{
+              classNames: {
+                toast: "font-sans",
+              },
+            }}
+          />
         </PrivyClientProvider>
       </body>
     </html>
