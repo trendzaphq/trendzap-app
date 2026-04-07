@@ -33,7 +33,7 @@ export function MarketFiltersSidebar({ activePlatform, sortBy, onSortChange }: M
   }
 
   return (
-    <aside className="hidden lg:flex flex-col gap-6 w-52 shrink-0 sticky top-[6.5rem] self-start h-fit pb-10">
+    <aside className="hidden lg:flex flex-col gap-6 w-52 shrink-0 sticky top-20 self-start h-fit pb-10">
       {/* Sort */}
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2 px-1">Sort</p>
