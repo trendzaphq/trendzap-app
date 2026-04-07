@@ -82,20 +82,20 @@ export function BetConfirmModal({
               <span className="text-muted-foreground">Your bet</span>
               <span className="font-mono font-semibold flex items-center gap-1">
                 <Zap className="h-3.5 w-3.5 text-primary" />
-                {amountNum.toFixed(4)} AVAX
+                {amountNum.toFixed(4)} USDC
               </span>
             </div>
             <div className="h-px bg-border/60" />
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Expected return if correct</span>
               <span className="font-mono font-bold text-green-400">
-                +{profitIfWin.toFixed(4)} AVAX
+                +{profitIfWin.toFixed(4)} USDC
               </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Total payout if correct</span>
               <span className="font-mono font-bold">
-                {expectedPayout.toFixed(4)} AVAX
+                {expectedPayout.toFixed(4)} USDC
               </span>
             </div>
             <div className="flex justify-between text-sm">
@@ -108,7 +108,7 @@ export function BetConfirmModal({
           <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40 text-xs text-muted-foreground">
             <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
             <span>
-              If the market resolves against your position, you lose your {amountNum.toFixed(4)} AVAX bet.
+              If the market resolves against your position, you lose your {amountNum.toFixed(4)} USDC bet.
               Fees: 3%.
             </span>
           </div>

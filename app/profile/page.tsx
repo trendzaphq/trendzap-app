@@ -123,7 +123,7 @@ function ProfileHero() {
           <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/30 border border-border/30">
             <BarChart3 className="h-4 w-4 text-secondary" />
             <span className="text-lg font-bold font-mono tabular-nums">{totalVolume}</span>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Vol AVAX</span>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Vol USDC</span>
           </div>
           <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/30 border border-border/30">
             <Wallet className="h-4 w-4 text-emerald-400" />

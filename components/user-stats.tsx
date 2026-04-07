@@ -23,7 +23,7 @@ export function UserStats() {
 
   const stats = [
     { label: "Markets Created", value: String(marketsCreated), icon: TrendingUp, color: "text-primary" },
-    { label: "Volume (AVAX)", value: totalVolume, icon: BarChart3, color: "text-secondary" },
+    { label: "Volume (USDC)", value: totalVolume, icon: BarChart3, color: "text-secondary" },
     { label: "Win Rate", value: "—", icon: Target, color: "text-accent" },
     { label: "Total Bets", value: "—", icon: Zap, color: "text-muted-foreground" },
   ]

@@ -362,7 +362,7 @@ export function CreateMarketDialog({
 
               {/* Bet Amount */}
               <div className="space-y-2">
-                <Label htmlFor="amount">{"Initial Bet Amount (AVAX)"}</Label>
+                <Label htmlFor="amount">{"Initial Bet Amount (USDC)"}</Label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -377,7 +377,7 @@ export function CreateMarketDialog({
                 <div className="flex gap-2">
                   {["0.01", "0.05", "0.1", "0.5"].map((amount) => (
                     <Button key={amount} variant="outline" size="sm" className="flex-1 bg-transparent" onClick={() => setBetAmount(amount)}>
-                      {amount} AVAX
+                      {amount} USDC
                     </Button>
                   ))}
                 </div>
@@ -423,7 +423,7 @@ export function CreateMarketDialog({
               <div className="p-4 bg-muted/50 rounded-lg space-y-2 border border-border">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Your bet"}</span>
-                  <span className="font-mono font-semibold">{betAmount || "0"} AVAX</span>
+                  <span className="font-mono font-semibold">{betAmount || "0"} USDC</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Position"}</span>
@@ -437,7 +437,7 @@ export function CreateMarketDialog({
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-border">
                   <span className="text-muted-foreground">{"Platform fee (3%)"}</span>
-                  <span className="font-mono text-xs">{(Number(betAmount || 0) * 0.03).toFixed(4)} AVAX</span>
+                  <span className="font-mono text-xs">{(Number(betAmount || 0) * 0.03).toFixed(4)} USDC</span>
                 </div>
               </div>
 

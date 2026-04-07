@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useWallets, usePrivy } from "@privy-io/react-auth"
-import { parseEther } from "viem"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
+import { getSettlementInfo, parseSettlementAmount } from "@/hooks/use-market"
 import {
   Link2, Sparkles, TrendingUp, TrendingDown, Zap, Loader2,
   CheckCircle2, AlertTriangle, Info, Clock, HelpCircle,
@@ -316,7 +316,7 @@ export default function CreateMarketPage() {
     const validCombos = metricCombos.filter(c => c.threshold && Number(c.threshold) > 0)
     if (validCombos.length === 0) { toast.error("Set at least one threshold"); return }
     if (!preview) { toast.error("Please analyze a URL first"); return }
-    if (Number(betAmount) < MIN_SEED) { toast.error(`Minimum seed bet is ${MIN_SEED} AVAX`); return }
+    if (Number(betAmount) < MIN_SEED) { toast.error(`Minimum seed bet is ${MIN_SEED} USDC`); return }
 
     setCreating(true)
     const hashes: string[] = []
@@ -329,32 +329,27 @@ export default function CreateMarketPage() {
       const provider = new BrowserProvider(ethereumProvider)
       const signer = await provider.getSigner()
 
-      // Check if the contract uses ERC20 settlement — if so, approve before any write
-      let isERC20 = false
-      try {
-        const marketContract = new Contract(
-          CONTRACTS.market,
-          ["function isTokenSettlement() view returns (bool)", "function settlementToken() view returns (address)"],
-          provider
+      // Get settlement info (USDC 6 decimals or native AVAX 18)
+      const settlement = await getSettlementInfo(provider)
+      const betUnits = parseSettlementAmount(betAmount || "0.05", settlement.decimals)
+
+      // If ERC20, ensure allowance for total across all combos
+      if (settlement.isERC20) {
+        const totalNeeded = betUnits * BigInt(validCombos.length)
+        const erc20 = new Contract(
+          settlement.tokenAddress,
+          ["function allowance(address,address) view returns (uint256)", "function approve(address,uint256) returns (bool)"],
+          signer
         )
-        isERC20 = await marketContract.isTokenSettlement()
-        if (isERC20) {
-          const tokenAddr: string = await marketContract.settlementToken()
-          const erc20 = new Contract(
-            tokenAddr,
-            ["function allowance(address,address) view returns (uint256)", "function approve(address,uint256) returns (bool)"],
-            signer
-          )
-          const betWei = parseEther(betAmount || "0.05")
-          const totalNeeded = betWei * BigInt(metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length)
-          const userAddress = await signer.getAddress()
-          const allowance: bigint = await erc20.allowance(userAddress, CONTRACTS.market)
-          if (allowance < totalNeeded) {
-            const approveTx = await erc20.approve(CONTRACTS.market, MaxUint256)
-            await approveTx.wait()
-          }
+        const userAddress = await signer.getAddress()
+        const allowance: bigint = await erc20.allowance(userAddress, CONTRACTS.market)
+        if (allowance < totalNeeded) {
+          toast.loading(`Approving ${settlement.tokenSymbol}…`, { id: toastId })
+          const approveTx = await erc20.approve(CONTRACTS.market, MaxUint256)
+          await approveTx.wait()
+          toast.loading("Creating market…", { id: toastId })
         }
-      } catch { /* proceed as AVAX if settlement check fails */ }
+      }
 
       const now = Math.floor(Date.now() / 1000)
       const duration = DURATIONS[deadline] || 86400
@@ -381,14 +376,14 @@ export default function CreateMarketPage() {
           resolutionTime,
         }
 
-        const betWei = parseEther(betAmount || "0.05")
+        const betWei = betUnits
         const txData = iface.encodeFunctionData("createMarket", [
           [params.postUrl, params.platform, params.metricType, params.threshold, params.startTime, params.endTime, params.resolutionTime],
           betWei.toString(),
           selectedPosition === "over",
         ])
 
-        const tx = await signer.sendTransaction({ to: CONTRACTS.market, data: txData, value: isERC20 ? "0" : betWei.toString() })
+        const tx = await signer.sendTransaction({ to: CONTRACTS.market, data: txData, value: settlement.isERC20 ? "0" : betWei.toString() })
         hashes.push(tx.hash)
         await tx.wait()
 
@@ -453,7 +448,7 @@ export default function CreateMarketPage() {
               </div>
               <p className="text-sm text-muted-foreground">
                 {isAdmin
-                  ? "Admin mode — reduced seed minimum (0.001 AVAX)"
+                  ? "Admin mode — reduced seed minimum (0.001 USDC)"
                   : "Turn viral content into a prediction market in under a minute"}
               </p>
             </div>
@@ -825,13 +820,13 @@ export default function CreateMarketPage() {
                 <div className="rounded-2xl border border-border/50 bg-card p-6 space-y-5">
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold">Seed Your Market</h2>
-                    <p className="text-sm text-muted-foreground">Place the first bet to activate the market. Minimum {MIN_SEED} AVAX.</p>
+                    <p className="text-sm text-muted-foreground">Place the first bet to activate the market. Minimum {MIN_SEED} USDC.</p>
                   </div>
 
                   {/* Bet amount */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-1.5">
-                      <Label htmlFor="bet-amount">Seed Bet (AVAX)</Label>
+                      <Label htmlFor="bet-amount">Seed Bet (USDC)</Label>
                       <InfoTooltip content="You're the first bettor — your seed activates the market and sets the initial pool. Other users can bet on either side after you." />
                     </div>
                     <Input
@@ -847,7 +842,7 @@ export default function CreateMarketPage() {
                     {Number(betAmount) > 0 && Number(betAmount) < MIN_SEED && (
                       <p className="text-xs text-destructive flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3 shrink-0" />
-                        Minimum seed bet is {MIN_SEED} AVAX{isAdmin ? "" : " to ensure enough initial liquidity"}.
+                        Minimum seed bet is {MIN_SEED} USDC{isAdmin ? "" : " to ensure enough initial liquidity"}.
                       </p>
                     )}
                     <div className="flex gap-1.5">
@@ -931,13 +926,13 @@ export default function CreateMarketPage() {
                       </span>
                       <span className="font-mono font-semibold flex items-center gap-1">
                         <Zap className="h-3.5 w-3.5 text-primary" />
-                        {(Number(betAmount || 0) * metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length).toFixed(3)} AVAX
+                        {(Number(betAmount || 0) * metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length).toFixed(3)} USDC
                       </span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Protocol fee (3%)</span>
                       <span className="font-mono">
-                        {(Number(betAmount || 0) * metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length * 0.03).toFixed(4)} AVAX
+                        {(Number(betAmount || 0) * metricCombos.filter(c => c.threshold && Number(c.threshold) > 0).length * 0.03).toFixed(4)} USDC
                       </span>
                     </div>
                   </div>
@@ -1034,7 +1029,7 @@ export default function CreateMarketPage() {
                         { icon: Link2, title: "1. Paste a URL", desc: "Drop any public X (Twitter) or YouTube post link." },
                         { icon: Sparkles, title: "2. AI analyzes it", desc: "The AI reads your post and auto-generates a market title + virality assessment." },
                         { icon: ShieldCheck, title: "3. Risk check", desc: "Our risk engine flags unusual setups before you go live." },
-                        { icon: Zap, title: "4. Seed with AVAX", desc: `Place at least ${MIN_SEED} AVAX to activate the market on-chain.` },
+                        { icon: Zap, title: "4. Seed with USDC", desc: `Place at least ${MIN_SEED} USDC to activate the market on-chain.` },
                       ].map(({ icon: Icon, title, desc }) => (
                         <div key={title} className="flex items-start gap-3">
                           <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 shrink-0 mt-0.5">

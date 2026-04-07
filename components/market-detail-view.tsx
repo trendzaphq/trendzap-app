@@ -200,7 +200,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <div className="flex items-center gap-1">
               <DollarSign className="h-4 w-4 text-primary" />
               <span className="font-mono">
-                {isLive ? `${parseFloat(market.totalVolume).toFixed(3)} AVAX` : `$${totalPool.toLocaleString()}`}
+                {isLive ? `${parseFloat(market.totalVolume).toFixed(2)} USDC` : `$${totalPool.toLocaleString()}`}
               </span>
             </div>
           </div>
@@ -381,7 +381,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
 
             {/* Amount Input */}
             <div className="space-y-3">
-              <Label htmlFor="bet-amount">{isLive ? "Bet Amount (AVAX)" : "Bet Amount (USDC)"}</Label>
+              <Label htmlFor="bet-amount">Bet Amount (USDC)</Label>
               <div className="relative">
                 <Input
                   id="bet-amount"
@@ -401,7 +401,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                     className="flex-1 bg-transparent"
                     onClick={() => setBetAmount(amount.toString())}
                   >
-                    {amount} AVAX
+                    {amount} USDC
                   </Button>
                 ))}
               </div>
@@ -412,7 +412,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               <div className="p-4 bg-muted/50 rounded-lg space-y-2 border border-border animate-slide-up">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Your bet"}</span>
-                  <span className="font-mono font-semibold">{isLive ? `${betAmount} AVAX` : `$${betAmount} USDC`}</span>
+                  <span className="font-mono font-semibold">{`${betAmount} USDC`}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Position"}</span>
@@ -425,12 +425,12 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{"Potential payout"}</span>
                   <span className="font-mono font-semibold text-primary">
-                    {isLive ? `${calculatePayout().toFixed(4)} AVAX` : `$${calculatePayout().toFixed(2)} USDC`}
+                    {`${calculatePayout().toFixed(2)} USDC`}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-border">
                   <span className="text-muted-foreground">{"Platform fee (3%)"}</span>
-                  <span className="font-mono text-xs">{(Number.parseFloat(betAmount) * 0.03).toFixed(4)} AVAX</span>
+                  <span className="font-mono text-xs">{(Number.parseFloat(betAmount) * 0.03).toFixed(4)} USDC</span>
                 </div>
               </div>
             )}
@@ -527,7 +527,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               {isLive && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{"Pool Balance"}</span>
-                  <span className="font-mono">{parseFloat(market.poolBalance).toFixed(4)} AVAX</span>
+                  <span className="font-mono">{parseFloat(market.poolBalance).toFixed(2)} USDC</span>
                 </div>
               )}
             </div>

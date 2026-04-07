@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | TrendZap",
   },
   description:
-    "The prediction market for social media virality. Bet AVAX on whether X posts and YouTube videos hit engagement thresholds. On-chain, auto-resolved, instant payouts.",
+    "The prediction market for social media virality. Bet USDC on whether X posts and YouTube videos hit engagement thresholds. On-chain, auto-resolved, instant payouts.",
   keywords: [
     "prediction market", "crypto betting", "viral content", "social media betting",
     "AVAX", "Avalanche", "TrendZap", "X Twitter bet", "YouTube viral", "DeFi",
