@@ -49,7 +49,7 @@ export function TrendingSidebar() {
     .slice(0, 6)
 
   return (
-    <aside className="hidden xl:flex flex-col gap-4 w-56 shrink-0 sticky top-[6.5rem] self-start h-fit pb-10">
+    <aside className="hidden xl:flex flex-col gap-4 w-56 shrink-0 sticky top-20 self-start h-fit pb-10">
       <div className="flex items-center gap-2">
         <Flame className="h-4 w-4 text-accent" />
         <span className="text-sm font-semibold">Trending</span>

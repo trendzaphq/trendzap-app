@@ -11,7 +11,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
     <div className="min-h-screen flex flex-col">
       <Navigation />
 
-      <main className="flex-1 container py-6">
+      <main className="flex-1 container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <MarketDetailView marketId={id} />
