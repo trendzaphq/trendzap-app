@@ -405,6 +405,19 @@ export default function CreateMarketPage() {
               creator_address: await signer.getAddress(),
             }),
           })
+          // Schedule auto-resolution via oracle (fire-and-forget — market is live regardless)
+          fetch("/api/oracle/schedule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              marketId,
+              postUrl: url,
+              platform: preview.platform,
+              metricType: combo.metric,
+              threshold: combo.threshold,
+              resolutionTime,
+            }),
+          }).catch(() => {})
         } catch { /* metadata save failed — market still live on-chain */ }
       }
 
