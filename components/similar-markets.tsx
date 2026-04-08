@@ -17,7 +17,7 @@ function getTimeLeft(endTime: number): string {
   return `${Math.floor(secs / 86400)}d ${Math.floor((secs % 86400) / 3600)}h`
 }
 
-export function SimilarMarkets({ platform, currentMarketId }: { platform: number; currentMarketId: number }) {
+export function SimilarMarkets({ marketId }: { marketId: number }) {
   const { markets } = useMarketList()
   const [titles, setTitles] = useState<Record<number, string>>({})
 
@@ -35,8 +35,10 @@ export function SimilarMarkets({ platform, currentMarketId }: { platform: number
       .catch(() => {})
   }, [])
 
+  const currentPlatform = markets.find((m) => m.id === marketId)?.platform
+
   const similar = markets
-    .filter((m) => m.platform === platform && m.id !== currentMarketId && m.status === "active")
+    .filter((m) => m.platform === currentPlatform && m.id !== marketId && m.status === "active")
     .sort((a, b) => parseFloat(b.totalVolume) - parseFloat(a.totalVolume))
     .slice(0, 3)
 

@@ -19,7 +19,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
           </div>
 
           <div className="space-y-6">
-            <SimilarMarkets />
+            <SimilarMarkets marketId={parseInt(id, 10)} />
           </div>
         </div>
       </main>
