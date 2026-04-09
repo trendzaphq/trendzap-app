@@ -175,6 +175,26 @@ export const MARKET_ABI = [
     inputs: [{ name: "marketId", type: "uint256" }],
     outputs: [],
   },
+  {
+    name: "resolveMarket",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "marketId", type: "uint256" },
+      { name: "metricValue", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "cancelMarket",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "marketId", type: "uint256" },
+      { name: "reason", type: "string" },
+    ],
+    outputs: [],
+  },
   // Events (for parsing logs)
   {
     name: "SharesBought",

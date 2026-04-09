@@ -31,27 +31,31 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
       .catch(() => {})
   }, [])
 
-  const liveMarkets = onChainMarkets.map((m) => {
-    const meta = metaMap[m.id]
-    return {
-      id: String(m.id),
-      platform: m.platform as "tiktok" | "youtube" | "x" | "instagram",
-      thumbnail: meta?.thumbnail_url || "",
-      title:
-        meta?.title ||
-        `Will ${m.postUrl.slice(0, 50)}... hit ${Number(m.threshold).toLocaleString()} ${m.metricType}?`,
-      metric: m.metricType.charAt(0).toUpperCase() + m.metricType.slice(1),
-      threshold: Number(m.threshold),
-      currentValue: 0,
-      overPool: m.priceOver,
-      underPool: m.priceUnder,
-      totalBets: 0,
-      endsIn: formatTimeRemaining(m.endTime),
-      endTime: m.endTime,
-      creator: m.creator.slice(0, 8) + "...",
-      volume: m.totalVolume,
-    }
-  })
+  const now = Math.floor(Date.now() / 1000)
+
+  const liveMarkets = onChainMarkets
+    .filter((m) => m.status === "ACTIVE" && m.endTime > now)
+    .map((m) => {
+      const meta = metaMap[m.id]
+      return {
+        id: String(m.id),
+        platform: m.platform as "tiktok" | "youtube" | "x" | "instagram",
+        thumbnail: meta?.thumbnail_url || "",
+        title:
+          meta?.title ||
+          `Will ${m.postUrl.slice(0, 50)}... hit ${Number(m.threshold).toLocaleString()} ${m.metricType}?`,
+        metric: m.metricType.charAt(0).toUpperCase() + m.metricType.slice(1),
+        threshold: Number(m.threshold),
+        currentValue: 0,
+        overPool: m.priceOver,
+        underPool: m.priceUnder,
+        totalBets: 0,
+        endsIn: formatTimeRemaining(m.endTime),
+        endTime: m.endTime,
+        creator: m.creator.slice(0, 8) + "...",
+        volume: m.totalVolume,
+      }
+    })
 
   let displayMarkets = platform ? liveMarkets.filter((m) => m.platform === platform) : liveMarkets
 
