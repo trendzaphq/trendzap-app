@@ -157,10 +157,14 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   }
 
   const isResolved = market.status === "RESOLVED"
+  const isCancelled = market.status === "CANCELLED"
+  const isExpired = isLive && onChainMarket ? Date.now() / 1000 > onChainMarket.endTime : false
   const hasWinningPosition =
     position &&
     ((market.outcome === "OVER" && position.overShares > 0n) ||
       (market.outcome === "UNDER" && position.underShares > 0n))
+  const hasAnyPosition = position && (position.overShares > 0n || position.underShares > 0n)
+  const showClaim = (isResolved && hasWinningPosition) || (isCancelled && hasAnyPosition)
 
   if (marketLoading) {
     return (
@@ -318,16 +322,18 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               </div>
             )}
 
-            {/* Claim Winnings for resolved markets */}
-            {isResolved && hasWinningPosition && (
+            {/* Claim Winnings / Refund */}
+            {showClaim && (
               <div className="mb-4 p-4 bg-primary/10 border border-primary/20 rounded-lg">
                 <div className="flex items-center gap-2 mb-3">
                   <Trophy className="h-5 w-5 text-primary" />
-                  <span className="font-semibold text-primary">You won! Claim your winnings.</span>
+                  <span className="font-semibold text-primary">
+                    {isCancelled ? "Market cancelled — claim your refund." : "You won! Claim your winnings."}
+                  </span>
                 </div>
                 <Button onClick={handleClaim} disabled={claimLoading} className="w-full gap-2">
                   {claimLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trophy className="h-4 w-4" />}
-                  Claim Winnings
+                  {isCancelled ? "Claim Refund" : "Claim Winnings"}
                 </Button>
               </div>
             )}
@@ -454,7 +460,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <Button
               className="w-full gap-2 h-12 text-base font-semibold"
               size="lg"
-              disabled={!betAmount || !selectedPosition || buyLoading || isResolved}
+              disabled={!betAmount || !selectedPosition || buyLoading || isResolved || isCancelled || isExpired}
               onClick={() => setShowConfirmModal(true)}
             >
               {buyLoading ? (
@@ -462,7 +468,15 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               ) : (
                 <Zap className="h-5 w-5 fill-current" />
               )}
-              {buyLoading ? "Placing Bet..." : isResolved ? "Market Resolved" : "Zap It!"}
+              {buyLoading
+                ? "Placing Bet..."
+                : isResolved
+                ? "Market Resolved"
+                : isCancelled
+                ? "Market Cancelled"
+                : isExpired
+                ? "Market Ended"
+                : "Zap It!"}
             </Button>
 
             <ShareToX
