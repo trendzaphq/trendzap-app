@@ -445,6 +445,9 @@ export default function AdminPage() {
   const [cancelTarget, setCancelTarget] = useState<MarketData | null>(null)
   const [filter, setFilter] = useState<string>("ALL")
   const [createOpen, setCreateOpen] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
+  const [userStats, setUserStats] = useState<{ total_users: number; total_bets: number } | null>(null)
 
   // ── Health check polling ──────────────────────────
   const checkHealth = useCallback(async () => {
@@ -480,6 +483,27 @@ export default function AdminPage() {
     return () => clearInterval(t)
   }, [checkHealth])
 
+  useEffect(() => {
+    fetch("/api/admin/stats")
+      .then((r) => r.json())
+      .then((d) => setUserStats(d))
+      .catch(() => {})
+  }, [])
+
+  const syncIndexer = async () => {
+    setSyncLoading(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch("/api/indexer/sync")
+      const data = await res.json()
+      setSyncResult(`Synced +${data.blocksProcessed ?? 0} blocks, ${data.betsIndexed ?? 0} bets, ${data.resolutionsIndexed ?? 0} resolutions`)
+    } catch {
+      setSyncResult("Sync failed — check console")
+    } finally {
+      setSyncLoading(false)
+    }
+  }
+
   const connectedAddress = wallets[0]?.address
   const isAdmin = connectedAddress?.toLowerCase() === ADMIN_ADDRESS
 
@@ -509,6 +533,11 @@ export default function AdminPage() {
     .reduce((sum, m) => sum + parseFloat(m.totalVolume || "0"), 0)
     .toFixed(4)
 
+  const now = Math.floor(Date.now() / 1000)
+  const expiredUnresolved = markets.filter(
+    (m) => (m.status === "ACTIVE" || m.status === "PENDING") && m.endTime < now
+  )
+
   const filtered =
     filter === "ALL" ? markets : markets.filter((m) => m.status === filter)
 
@@ -523,15 +552,21 @@ export default function AdminPage() {
               : "Connect wallet to take actions"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             + Create Market
+          </Button>
+          <Button size="sm" variant="outline" onClick={syncIndexer} disabled={syncLoading}>
+            {syncLoading ? "Syncing…" : "Sync Indexer"}
           </Button>
           <Button size="sm" variant="outline" onClick={checkHealth}>
             Refresh health
           </Button>
         </div>
       </div>
+      {syncResult && (
+        <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 py-2">{syncResult}</div>
+      )}
 
       {/* Service health ─────────────────────────────── */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -574,7 +609,27 @@ export default function AdminPage() {
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Volume</CardTitle></CardHeader>
           <CardContent><p className="text-3xl font-bold">{totalVolumeEth} <span className="text-sm font-normal">USDC</span></p></CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Users</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-purple-400">{userStats?.total_users ?? "—"}</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Bets</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-orange-400">{userStats?.total_bets ?? "—"}</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Needs Resolution</CardTitle></CardHeader>
+          <CardContent><p className={`text-3xl font-bold ${expiredUnresolved.length > 0 ? "text-yellow-400" : ""}`}>{expiredUnresolved.length}</p></CardContent>
+        </Card>
       </section>
+
+      {/* Expired market warning ─────────────────────── */}
+      {expiredUnresolved.length > 0 && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
+          ⚠️ <strong>{expiredUnresolved.length} market{expiredUnresolved.length > 1 ? "s have" : " has"} passed their end time</strong> and need manual resolution.
+          {" "}Filter by <strong>ACTIVE</strong> below, then click <strong>Resolve</strong> on each expired market.
+        </div>
+      )}
 
       {/* Status filter tabs ──────────────────────────── */}
       <div className="flex flex-wrap gap-2">
@@ -622,9 +677,10 @@ export default function AdminPage() {
                     m.status === "ACTIVE" ||
                     m.status === "CLOSED"
                   const endDate = new Date(m.endTime * 1000)
+                  const isExpiredRow = (m.status === "ACTIVE" || m.status === "PENDING") && m.endTime < now
 
                   return (
-                    <TableRow key={m.id}>
+                    <TableRow key={m.id} className={isExpiredRow ? "bg-yellow-500/5 border-l-2 border-yellow-500/40" : ""}>
                       <TableCell className="font-mono text-xs">{m.id}</TableCell>
                       <TableCell className="max-w-[180px]">
                         <a
@@ -641,6 +697,7 @@ export default function AdminPage() {
                       <TableCell className="text-xs">{m.totalVolume} USDC</TableCell>
                       <TableCell className="text-xs">
                         {endDate.toLocaleDateString()} {endDate.toLocaleTimeString()}
+                        {isExpiredRow && <span className="ml-1 text-yellow-400 font-semibold">⚠ EXPIRED</span>}
                       </TableCell>
                       <TableCell><StatusBadge status={m.status} /></TableCell>
                       <TableCell>

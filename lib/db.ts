@@ -221,4 +221,26 @@ export async function getPriceHistory(marketId: number): Promise<PricePoint[]> {
   `) as PricePoint[]
 }
 
+export interface UserStats {
+  total_users: number
+  total_bets: number
+  total_volume_usdc: string
+}
+
+export async function getUserStats(): Promise<UserStats> {
+  const results = await sql`
+    SELECT
+      COUNT(DISTINCT trader_address)::int AS total_users,
+      COUNT(*)::int AS total_bets,
+      COALESCE(SUM(CAST(cost_wei AS NUMERIC)), 0)::TEXT AS total_volume_usdc
+    FROM bet_events
+  `
+  const row = (results as UserStats[])[0]
+  return {
+    total_users: row?.total_users ?? 0,
+    total_bets: row?.total_bets ?? 0,
+    total_volume_usdc: row?.total_volume_usdc ?? "0",
+  }
+}
+
 export { sql }
