@@ -155,7 +155,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
 
   const handleClaim = async () => {
     try {
-      await claim(numericId)
+      await claim(numericId, isCancelled)
       refetch()
     } catch {
       // error toast is handled by useClaimWinnings

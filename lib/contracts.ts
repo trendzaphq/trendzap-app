@@ -195,6 +195,13 @@ export const MARKET_ABI = [
     ],
     outputs: [],
   },
+  {
+    name: "claimRefund",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "marketId", type: "uint256" }],
+    outputs: [],
+  },
   // Events (for parsing logs)
   {
     name: "SharesBought",
