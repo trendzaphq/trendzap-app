@@ -44,6 +44,7 @@ export function Navigation() {
   const privyReady = ready || privyTimedOut
   const navAddress = wallets[0]?.address ?? ""
   const navInitials = (user?.email?.address?.charAt(0) || navAddress.charAt(2) || "U").toUpperCase()
+  const isAdmin = navAddress.toLowerCase() === "0x05394029ea22767d2283bcd0be03b13353781212"
 
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<{
@@ -196,11 +197,13 @@ export function Navigation() {
                       <Settings className="h-4 w-4" />Settings
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin" className="cursor-pointer gap-2 flex text-muted-foreground">
-                      <ShieldCheck className="h-4 w-4" />Admin
-                    </Link>
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer gap-2 flex text-muted-foreground">
+                        <ShieldCheck className="h-4 w-4" />Admin
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={logout}
                     className="text-destructive focus:text-destructive cursor-pointer gap-2 flex"
