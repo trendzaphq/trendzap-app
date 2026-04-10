@@ -27,13 +27,13 @@ export default async function MarketPage({ params }: { params: Promise<{ id: str
 
       <main className="flex-1 container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2">
             <MarketDetailView marketId={marketId} />
-            <RecentBets marketId={marketId} />
           </div>
 
           <div className="space-y-6">
             <SimilarMarkets marketId={numericId ?? 0} />
+            <RecentBets marketId={marketId} />
           </div>
         </div>
       </main>
