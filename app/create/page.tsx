@@ -92,7 +92,7 @@ export default function CreateMarketPage() {
 
   // Admin bypass — lower seed minimum for admin wallet
   const isAdmin = wallets[0]?.address?.toLowerCase() === "0x05394029ea22767d2283bcd0be03b13353781212"
-  const MIN_SEED = isAdmin ? 0.001 : 0.7
+  const MIN_SEED = isAdmin ? 0.001 : 1.0
   const walletAddress = wallets[0]?.address?.toLowerCase() || ""
 
   // Auth guard — open login modal immediately if unauthenticated
@@ -146,7 +146,7 @@ export default function CreateMarketPage() {
   const [customTitle, setCustomTitle] = useState("")
   const [metricCombos, setMetricCombos] = useState<MetricCombo[]>([{ id: "1", metric: "views", threshold: "" }])
   const [deadline, setDeadline] = useState("24h")
-  const [betAmount, setBetAmount] = useState("0.7")
+  const [betAmount, setBetAmount] = useState("1")
   const [selectedPosition, setSelectedPosition] = useState<"over" | "under">("over")
 
   // Live stats from embed (used for risk check + threshold validation)
@@ -864,7 +864,7 @@ export default function CreateMarketPage() {
                       type="number"
                       min={MIN_SEED}
                       step={isAdmin ? "0.001" : "0.01"}
-                      placeholder={isAdmin ? "0.001" : "0.7"}
+                      placeholder={isAdmin ? "0.001" : "1"}
                       value={betAmount}
                       onChange={(e) => setBetAmount(e.target.value)}
                       className={`h-11 text-lg font-mono ${Number(betAmount) > 0 && Number(betAmount) < MIN_SEED ? "border-destructive focus-visible:ring-destructive" : ""}`}
@@ -876,7 +876,7 @@ export default function CreateMarketPage() {
                       </p>
                     )}
                     <div className="flex gap-1.5">
-                      {(isAdmin ? ["0.001", "0.01", "0.05", "0.1"] : ["0.7", "1", "2", "5"]).map((a) => (
+                      {(isAdmin ? ["0.001", "0.01", "0.05", "0.1"] : ["1", "2", "5", "10"]).map((a) => (
                         <button
                           key={a}
                           onClick={() => setBetAmount(a)}
