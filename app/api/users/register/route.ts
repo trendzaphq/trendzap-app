@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { sql } from "@neondatabase/serverless"
+import { neon } from "@neondatabase/serverless"
 
 export const runtime = "nodejs"
+
+const sql = neon(process.env.DATABASE_URL!)
 
 export async function POST(req: NextRequest) {
   try {
