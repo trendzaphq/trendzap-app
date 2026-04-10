@@ -21,6 +21,7 @@ import {
   DollarSign,
   CheckCircle2,
   Wallet,
+  AlertTriangle,
 } from "lucide-react"
 import { usePrivy } from "@privy-io/react-auth"
 import { useMarket, useBuyShares, useClaimWinnings, useUserPosition } from "@/hooks/use-market"
@@ -444,16 +445,22 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 <Input
                   id="bet-amount"
                   type="number"
-                  placeholder="0.7"
+                  placeholder="1"
                   value={betAmount}
                   onChange={(e) => setBetAmount(e.target.value)}
                   className="text-lg font-mono h-12"
-                  min="0.7"
+                  min="1"
                   step="0.1"
                 />
               </div>
+              {Number(betAmount) > 0 && Number(betAmount) < 1 && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                  Minimum bet is 1 USDC
+                </p>
+              )}
               <div className="flex gap-2">
-                {[0.7, 1, 2, 5].map((amount) => (
+                {[1, 2, 5, 10].map((amount) => (
                   <Button
                     key={amount}
                     variant="outline"
@@ -498,7 +505,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <Button
               className="w-full gap-2 h-12 text-base font-semibold"
               size="lg"
-              disabled={!betAmount || !selectedPosition || buyLoading || isResolved || isCancelled || isExpired}
+              disabled={!betAmount || Number(betAmount) < 1 || !selectedPosition || buyLoading || isResolved || isCancelled || isExpired}
               onClick={() => setShowConfirmModal(true)}
             >
               {buyLoading ? (
