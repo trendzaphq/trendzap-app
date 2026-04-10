@@ -3,10 +3,19 @@ import { neon } from "@neondatabase/serverless"
 
 export const runtime = "nodejs"
 
-const sql = neon(process.env.DATABASE_URL!)
+// Lazy init — only call neon() when handler is invoked, not at build time
+let _db: ReturnType<typeof neon> | undefined
+const getSql = () => {
+  if (!_db) {
+    if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured")
+    _db = neon(process.env.DATABASE_URL)
+  }
+  return _db
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const sql = getSql()
     const { address } = await req.json()
     if (!address || typeof address !== "string") {
       return NextResponse.json({ error: "address is required and must be a string" }, { status: 400 })
