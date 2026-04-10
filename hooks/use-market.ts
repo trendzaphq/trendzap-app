@@ -450,21 +450,6 @@ export function useClaimWinnings() {
           duration: 8000,
         })
 
-        // Auto-add USDC token to MetaMask/wallet so balance shows up
-        try {
-          await ethereumProvider.request({
-            method: "wallet_watchAsset",
-            params: {
-              type: "ERC20",
-              options: {
-                address: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
-                symbol: "USDC",
-                decimals: 6,
-              },
-            },
-          })
-        } catch { /* user declined or wallet doesn't support it */ }
-
         return tx.hash
       } catch (err) {
         const friendly = parseTxError(err)
