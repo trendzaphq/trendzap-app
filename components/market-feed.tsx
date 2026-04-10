@@ -7,6 +7,7 @@ import { useMarketList } from "@/hooks/use-market"
 
 interface MarketMeta {
   market_id: number
+  slug: string | null
   title: string | null
   thumbnail_url: string | null
 }
@@ -38,7 +39,7 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
     .map((m) => {
       const meta = metaMap[m.id]
       return {
-        id: String(m.id),
+        id: meta?.slug ?? String(m.id),
         platform: m.platform as "tiktok" | "youtube" | "x" | "instagram",
         thumbnail: meta?.thumbnail_url || "",
         title:

@@ -72,10 +72,20 @@ export async function ensureSchema() {
       tx_hash     TEXT UNIQUE NOT NULL
     )
   `
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      address    TEXT PRIMARY KEY,
+      first_seen TIMESTAMPTZ DEFAULT NOW(),
+      last_seen  TIMESTAMPTZ DEFAULT NOW()
+    )
+  `
+  // Migrations for existing tables
+  await sql`ALTER TABLE market_metadata ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE`
 }
 
 export interface MarketMeta {
   market_id: number
+  slug: string | null
   title: string | null
   description: string | null
   thumbnail_url: string | null
@@ -95,13 +105,19 @@ export async function getMetadata(marketId: number): Promise<MarketMeta | null> 
 
 export async function upsertMetadata(data: Omit<MarketMeta, "created_at">) {
   await sql`
-    INSERT INTO market_metadata (market_id, title, description, thumbnail_url, creator_address, chain_id)
-    VALUES (${data.market_id}, ${data.title}, ${data.description}, ${data.thumbnail_url}, ${data.creator_address}, ${data.chain_id})
+    INSERT INTO market_metadata (market_id, slug, title, description, thumbnail_url, creator_address, chain_id)
+    VALUES (${data.market_id}, ${data.slug}, ${data.title}, ${data.description}, ${data.thumbnail_url}, ${data.creator_address}, ${data.chain_id})
     ON CONFLICT (market_id) DO UPDATE SET
       title         = EXCLUDED.title,
       description   = EXCLUDED.description,
-      thumbnail_url = EXCLUDED.thumbnail_url
+      thumbnail_url = EXCLUDED.thumbnail_url,
+      slug          = COALESCE(market_metadata.slug, EXCLUDED.slug)
   `
+}
+
+export async function getMetadataBySlug(slug: string): Promise<MarketMeta | null> {
+  const rows = await sql`SELECT * FROM market_metadata WHERE slug = ${slug}` as MarketMeta[]
+  return rows[0] ?? null
 }
 
 // ─── Indexer helpers ──────────────────────────────────────────────────────────
@@ -236,10 +252,9 @@ export interface UserStats {
 export async function getUserStats(): Promise<UserStats> {
   const results = await sql`
     SELECT
-      COUNT(DISTINCT trader_address)::int AS total_users,
-      COUNT(*)::int AS total_bets,
-      COALESCE(SUM(CAST(cost_wei AS NUMERIC)), 0)::TEXT AS total_volume_usdc
-    FROM bet_events
+      (SELECT COUNT(*)::int FROM users) AS total_users,
+      (SELECT COUNT(*)::int FROM bet_events) AS total_bets,
+      COALESCE((SELECT SUM(CAST(cost_wei AS NUMERIC))::TEXT FROM bet_events), '0') AS total_volume_usdc
   `
   const row = (results as UserStats[])[0]
   return {
@@ -247,6 +262,13 @@ export async function getUserStats(): Promise<UserStats> {
     total_bets: row?.total_bets ?? 0,
     total_volume_usdc: row?.total_volume_usdc ?? "0",
   }
+}
+
+export async function upsertUser(address: string) {
+  await sql`
+    INSERT INTO users (address) VALUES (${address.toLowerCase()})
+    ON CONFLICT (address) DO UPDATE SET last_seen = NOW()
+  `
 }
 
 export { sql }

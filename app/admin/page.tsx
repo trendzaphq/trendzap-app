@@ -511,13 +511,16 @@ export default function AdminPage() {
   if (!authenticated || !isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="p-8 text-center space-y-3 max-w-sm">
+        <Card className="p-8 text-center space-y-4 max-w-sm">
           <p className="text-xl font-bold text-destructive">Access Denied</p>
           <p className="text-sm text-muted-foreground">
             {!authenticated
               ? "Connect the admin wallet to access this page."
               : "Connected wallet is not authorized."}
           </p>
+          <a href="/" className="inline-block text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+            ← Go Home
+          </a>
         </Card>
       </div>
     )
