@@ -46,6 +46,17 @@ export function Navigation() {
   const navInitials = (user?.email?.address?.charAt(0) || navAddress.charAt(2) || "U").toUpperCase()
   const isAdmin = navAddress.toLowerCase() === "0x05394029ea22767d2283bcd0be03b13353781212"
 
+  // Register wallet address in DB for user count tracking
+  useEffect(() => {
+    if (authenticated && navAddress) {
+      fetch("/api/users/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: navAddress }),
+      }).catch(() => {})
+    }
+  }, [authenticated, navAddress])
+
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<{
     market_id: number

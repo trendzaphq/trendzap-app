@@ -23,8 +23,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "market_id is required" }, { status: 400 })
     }
 
+    const slug = crypto.randomUUID()
+
     await upsertMetadata({
       market_id: Number(market_id),
+      slug,
       title: title ?? null,
       description: description ?? null,
       thumbnail_url: thumbnail_url ?? null,
@@ -32,8 +35,9 @@ export async function POST(req: NextRequest) {
       chain_id: 43114,
     })
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, slug })
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }
+
