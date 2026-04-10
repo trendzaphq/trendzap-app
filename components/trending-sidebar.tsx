@@ -37,6 +37,11 @@ export function TrendingSidebar() {
   }, [])
 
   const trending: TrendingMarket[] = markets
+    .filter((m) => {
+      // Only show ACTIVE markets that haven't expired
+      const now = Math.floor(Date.now() / 1000)
+      return m.status === "ACTIVE" && m.endTime > now
+    })
     .map((m) => ({
       id: String(m.id),
       title: metaMap[m.id]?.title || `Market #${m.id}`,
