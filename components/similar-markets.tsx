@@ -7,8 +7,6 @@ import { Clock } from "lucide-react"
 import Link from "next/link"
 import { useMarketList } from "@/hooks/use-market"
 
-const PLATFORM_NAMES = ["x", "youtube", "tiktok", "instagram"]
-
 function getTimeLeft(endTime: number): string {
   const secs = endTime - Math.floor(Date.now() / 1000)
   if (secs <= 0) return "Ended"
@@ -26,19 +24,20 @@ export function SimilarMarkets({ marketId }: { marketId: number }) {
     fetch("/api/markets")
       .then((r) => r.json())
       .then((d) => {
-        if (d.ok && Array.isArray(d.markets)) {
+        if (Array.isArray(d)) {
           const map: Record<number, string> = {}
-          for (const m of d.markets) map[m.market_id] = m.title
+          for (const m of d) map[m.market_id] = m.title
           setTitles(map)
         }
       })
       .catch(() => {})
   }, [])
 
+  const now = Math.floor(Date.now() / 1000)
   const currentPlatform = markets.find((m) => m.id === marketId)?.platform
 
   const similar = markets
-    .filter((m) => m.platform === currentPlatform && m.id !== marketId && m.status === "active")
+    .filter((m) => m.platform === currentPlatform && m.id !== marketId && m.status === "ACTIVE" && m.endTime > now)
     .sort((a, b) => parseFloat(b.totalVolume) - parseFloat(a.totalVolume))
     .slice(0, 3)
 
@@ -46,10 +45,10 @@ export function SimilarMarkets({ marketId }: { marketId: number }) {
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">Similar Markets</h3>
+      <h3 className="text-lg font-semibold mb-4">Related Markets</h3>
       <div className="space-y-3">
         {similar.map((market) => {
-          const platformName = PLATFORM_NAMES[market.platform]?.toUpperCase() ?? "X"
+          const platformName = market.platform.toUpperCase()
           const title = titles[market.id] || `Market #${market.id}`
           const timeLeft = getTimeLeft(market.endTime)
           const pool = parseFloat(market.totalVolume).toFixed(2)

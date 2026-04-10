@@ -19,14 +19,18 @@ import {
   Loader2,
   Trophy,
   DollarSign,
+  CheckCircle2,
 } from "lucide-react"
 import { useMarket, useBuyShares, useClaimWinnings, useUserPosition } from "@/hooks/use-market"
 import { useCountdown } from "@/hooks/use-countdown"
 import { formatEther } from "viem"
+import { toast } from "sonner"
 import { OddsChart } from "@/components/odds-chart"
 import { ShareToX } from "@/components/share-to-x"
 import { BetConfirmModal } from "@/components/bet-confirm-modal"
 import { PostEmbed } from "@/components/post-embed"
+import { SimilarMarkets } from "@/components/similar-markets"
+import { RecentBets } from "@/components/recent-bets"
 
 interface MarketDetailViewProps {
   marketId: string
@@ -159,12 +163,13 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const isResolved = market.status === "RESOLVED"
   const isCancelled = market.status === "CANCELLED"
   const isExpired = isLive && onChainMarket ? Date.now() / 1000 > onChainMarket.endTime : false
+  const alreadyClaimed = position?.claimed ?? false
   const hasWinningPosition =
     position &&
     ((market.outcome === "OVER" && position.overShares > 0n) ||
       (market.outcome === "UNDER" && position.underShares > 0n))
   const hasAnyPosition = position && (position.overShares > 0n || position.underShares > 0n)
-  const showClaim = (isResolved && hasWinningPosition) || (isCancelled && hasAnyPosition)
+  const showClaim = !alreadyClaimed && ((isResolved && hasWinningPosition) || (isCancelled && hasAnyPosition))
 
   if (marketLoading) {
     return (
@@ -175,7 +180,9 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+      {/* Main content column */}
+      <div className="flex-1 min-w-0 space-y-6">
       {/* Content Preview — actual post embed */}
       <Card className="overflow-hidden">
         {/* Header row: platform badge + external link */}
@@ -338,6 +345,20 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               </div>
             )}
 
+            {/* Already claimed — show disabled button with hover feedback */}
+            {alreadyClaimed && hasAnyPosition && (
+              <div className="mb-4 p-4 bg-muted/40 border border-border rounded-lg">
+                <Button
+                  disabled
+                  className="w-full gap-2 opacity-60 cursor-not-allowed"
+                  onMouseEnter={() => toast.info("You've already claimed your winnings for this market.", { duration: 2500 })}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {isCancelled ? "Refund Claimed" : "Winnings Claimed"}
+                </Button>
+              </div>
+            )}
+
             {/* User Position */}
             {position && (position.overShares > 0n || position.underShares > 0n) && (
               <div className="mb-4 p-3 bg-muted/50 rounded-lg border border-border">
@@ -408,14 +429,16 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 <Input
                   id="bet-amount"
                   type="number"
-                  placeholder="0.1"
+                  placeholder="0.7"
                   value={betAmount}
                   onChange={(e) => setBetAmount(e.target.value)}
                   className="text-lg font-mono h-12"
+                  min="0.7"
+                  step="0.1"
                 />
               </div>
               <div className="flex gap-2">
-                {[0.1, 0.5, 1, 2].map((amount) => (
+                {[0.7, 1, 2, 5].map((amount) => (
                   <Button
                     key={amount}
                     variant="outline"
@@ -585,6 +608,15 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
           }}
         />
       )}
+
+      {/* Recent Bets — below activity tabs */}
+      <RecentBets marketId={String(numericId)} />
+      </div>
+
+      {/* Right sidebar — lg+ screens only */}
+      <div className="hidden lg:block w-72 xl:w-80 shrink-0 space-y-6 sticky top-24 self-start">
+        <SimilarMarkets marketId={numericId} />
+      </div>
     </div>
   )
 }
