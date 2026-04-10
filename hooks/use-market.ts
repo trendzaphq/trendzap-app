@@ -416,12 +416,12 @@ export function useClaimWinnings() {
   const [loading, setLoading] = useState(false)
 
   const claim = useCallback(
-    async (marketId: number) => {
+    async (marketId: number, isCancelled = false) => {
       const wallet = wallets[0]
       if (!wallet) throw new Error("Connect wallet first")
 
       setLoading(true)
-      const toastId = toast.loading("Claiming your winnings…")
+      const toastId = toast.loading(isCancelled ? "Claiming your refund…" : "Claiming your winnings…")
       try {
         await wallet.switchChain(43114)
         const ethereumProvider = await wallet.getEthereumProvider()
@@ -429,20 +429,20 @@ export function useClaimWinnings() {
         const provider = new BrowserProvider(ethereumProvider)
         const signer = await provider.getSigner()
 
-        const iface = new EthersInterface([
-          "function claimWinnings(uint256 marketId)",
-        ])
-        const data = iface.encodeFunctionData("claimWinnings", [marketId])
+        const fnSig = isCancelled
+          ? "function claimRefund(uint256 marketId)"
+          : "function claimWinnings(uint256 marketId)"
+        const fnName = isCancelled ? "claimRefund" : "claimWinnings"
 
-        const tx = await signer.sendTransaction({
-          to: CONTRACTS.market,
-          data,
-        })
+        const iface = new EthersInterface([fnSig])
+        const data = iface.encodeFunctionData(fnName, [marketId])
+
+        const tx = await signer.sendTransaction({ to: CONTRACTS.market, data })
         await tx.wait()
 
-        toast.success("Winnings claimed! 🏆", {
+        toast.success(isCancelled ? "Refund claimed! 💸" : "Winnings claimed! 🏆", {
           id: toastId,
-          description: "USDC has been sent to your wallet.",
+          description: isCancelled ? "Your original bet has been refunded." : "USDC has been sent to your wallet.",
           action: {
             label: "View tx",
             onClick: () => window.open(`${process.env.NEXT_PUBLIC_EXPLORER_URL || "https://snowtrace.io"}/tx/${tx.hash}`, "_blank"),
