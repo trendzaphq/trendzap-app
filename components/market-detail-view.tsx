@@ -20,7 +20,9 @@ import {
   Trophy,
   DollarSign,
   CheckCircle2,
+  Wallet,
 } from "lucide-react"
+import { usePrivy } from "@privy-io/react-auth"
 import { useMarket, useBuyShares, useClaimWinnings, useUserPosition } from "@/hooks/use-market"
 import { useCountdown } from "@/hooks/use-countdown"
 import { formatEther } from "viem"
@@ -29,8 +31,6 @@ import { OddsChart } from "@/components/odds-chart"
 import { ShareToX } from "@/components/share-to-x"
 import { BetConfirmModal } from "@/components/bet-confirm-modal"
 import { PostEmbed } from "@/components/post-embed"
-import { SimilarMarkets } from "@/components/similar-markets"
-import { RecentBets } from "@/components/recent-bets"
 
 interface MarketDetailViewProps {
   marketId: string
@@ -38,6 +38,7 @@ interface MarketDetailViewProps {
 
 export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const numericId = parseInt(marketId, 10)
+  const { authenticated, login } = usePrivy()
   const { market: onChainMarket, loading: marketLoading, refetch } = useMarket(numericId)
   const { buyShares, loading: buyLoading } = useBuyShares()
   const { claim, loading: claimLoading } = useClaimWinnings()
@@ -180,9 +181,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-      {/* Main content column */}
-      <div className="flex-1 min-w-0 space-y-6">
+    <div className="space-y-6">
       {/* Content Preview — actual post embed */}
       <Card className="overflow-hidden">
         {/* Header row: platform badge + external link */}
@@ -313,6 +312,22 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
           <div>
             <h3 className="text-lg font-semibold mb-4">{"Place Your Bet"}</h3>
 
+            {!authenticated ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
+                <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Wallet className="h-7 w-7 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-semibold">Connect to Place a Bet</p>
+                  <p className="text-sm text-muted-foreground">Sign in with your wallet to predict on this market.</p>
+                </div>
+                <Button onClick={login} className="gap-2 mt-1">
+                  <Wallet className="h-4 w-4" />
+                  Connect Wallet
+                </Button>
+              </div>
+            ) : (
+            <>
             {showSuccess && (
               <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg animate-slide-up">
                 <ShareToX
@@ -511,6 +526,8 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               variant="ghost"
               size="sm"
             />
+            </>
+            )}
           </div>
         </Card>
       </div>
@@ -609,14 +626,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
         />
       )}
 
-      {/* Recent Bets — below activity tabs */}
-      <RecentBets marketId={String(numericId)} />
-      </div>
-
-      {/* Right sidebar — lg+ screens only */}
-      <div className="hidden lg:block w-72 xl:w-80 shrink-0 space-y-6 sticky top-24 self-start">
-        <SimilarMarkets marketId={numericId} />
-      </div>
+      {/* Recent Bets and Related Markets are rendered by the page layout */}
     </div>
   )
 }
