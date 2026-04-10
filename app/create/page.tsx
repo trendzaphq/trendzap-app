@@ -93,6 +93,7 @@ export default function CreateMarketPage() {
   // Admin bypass — lower seed minimum for admin wallet
   const isAdmin = wallets[0]?.address?.toLowerCase() === "0x05394029ea22767d2283bcd0be03b13353781212"
   const MIN_SEED = isAdmin ? 0.001 : 0.7
+  const walletAddress = wallets[0]?.address?.toLowerCase() || ""
 
   // Auth guard — open login modal immediately if unauthenticated
   useEffect(() => {
@@ -102,12 +103,18 @@ export default function CreateMarketPage() {
   // Track first render to prevent save effect from overwriting restore on mount
   const draftSaveBlocked = useRef(true)
 
-  // Restore draft from localStorage on mount
+  // Restore draft from localStorage — wallet-scoped (re-runs when wallet resolves)
   useEffect(() => {
+    if (!walletAddress) return // wait for Privy to resolve wallet
     try {
       const saved = localStorage.getItem(DRAFT_KEY)
       if (!saved) return
       const d = JSON.parse(saved)
+      // Only restore if draft belongs to current wallet; clear stale drafts of other wallets
+      if (d.wallet && d.wallet !== walletAddress) {
+        localStorage.removeItem(DRAFT_KEY)
+        return
+      }
       if (d.url) setUrl(d.url)
       if (d.customTitle) setCustomTitle(d.customTitle)
       if (d.metricCombos?.length) setMetricCombos(d.metricCombos)
@@ -118,8 +125,10 @@ export default function CreateMarketPage() {
       if (d.autoSuggestedTitle) setAutoSuggestedTitle(d.autoSuggestedTitle)
       if (d.autoViralityNote) setAutoViralityNote(d.autoViralityNote)
       if (d.step && d.step !== "done") setStep(d.step)
+      draftSaveBlocked.current = false
     } catch {}
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletAddress])
 
   const [step, setStep] = useState<Step>("url")
   const [url, setUrl] = useState("")
@@ -182,6 +191,7 @@ export default function CreateMarketPage() {
     if (step === "done") { localStorage.removeItem(DRAFT_KEY); return }
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        wallet: walletAddress,
         step, url, customTitle, metricCombos, deadline, betAmount, selectedPosition,
         preview, autoSuggestedTitle, autoViralityNote,
       }))
@@ -431,6 +441,13 @@ export default function CreateMarketPage() {
     } catch (err) {
       const friendly = parseTxError(err)
       toast.error(friendly, { id: toastId, duration: 6000 })
+      // If at least one market was created before the error, clear the draft so the user
+      // doesn't accidentally re-submit the same market on the next visit
+      if (hashes.length > 0) {
+        localStorage.removeItem(DRAFT_KEY)
+        setTxHashes(hashes)
+        setStep("done")
+      }
     } finally {
       setCreating(false)
       setCreatingStep(0)
