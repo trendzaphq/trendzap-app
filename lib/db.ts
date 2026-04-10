@@ -160,6 +160,12 @@ export async function getUserBets(address: string): Promise<BetEvent[]> {
   `) as BetEvent[]
 }
 
+export async function getMarketBets(marketId: number, limit = 10): Promise<BetEvent[]> {
+  return (await sql`
+    SELECT * FROM bet_events WHERE market_id = ${marketId} ORDER BY block_number DESC LIMIT ${limit}
+  `) as BetEvent[]
+}
+
 export interface LeaderboardEntry {
   trader_address: string
   total_bets: string

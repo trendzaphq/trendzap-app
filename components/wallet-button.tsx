@@ -16,6 +16,9 @@ import { createPublicClient, http, formatEther } from "viem"
 import { avalanche } from "viem/chains"
 import { EXPLORER_URL, RPC_URL } from "@/lib/contracts"
 
+const USDC_ADDRESS = "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E" as const
+const USDC_BALANCE_ABI = [{ name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] }] as const
+
 interface WalletButtonProps {
   variant?: "default" | "compact"
 }
@@ -25,6 +28,7 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
   const { wallets } = useWallets()
   const [copied, setCopied] = useState(false)
   const [balance, setBalance] = useState<string | null>(null)
+  const [usdcBalance, setUsdcBalance] = useState<string | null>(null)
   // Fallback: if Privy hasn't become ready in 3s, stop showing the spinner
   const [privyTimedOut, setPrivyTimedOut] = useState(false)
   useEffect(() => {
@@ -50,24 +54,30 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
     }
   }, [activeWallet, activeWallet?.chainId])
 
-  // Fetch native AVAX balance (needed for gas fees)
+  // Fetch native AVAX balance (for gas) + USDC balance
   useEffect(() => {
     if (!address) return
     const client = createPublicClient({
       chain: avalanche,
       transport: http(RPC_URL),
     })
-    client
-      .getBalance({ address: address as `0x${string}` })
-      .then((bal) => setBalance(formatEther(bal)))
-      .catch(() => setBalance(null))
 
-    const interval = setInterval(() => {
-      client
-        .getBalance({ address: address as `0x${string}` })
-        .then((bal) => setBalance(formatEther(bal)))
-        .catch(() => {})
-    }, 30_000)
+    const fetchBalances = async () => {
+      const [nativeBal, usdcRaw] = await Promise.all([
+        client.getBalance({ address: address as `0x${string}` }).catch(() => null),
+        client.readContract({
+          address: USDC_ADDRESS,
+          abi: USDC_BALANCE_ABI,
+          functionName: "balanceOf",
+          args: [address as `0x${string}`],
+        }).catch(() => null) as Promise<bigint | null>,
+      ])
+      if (nativeBal !== null) setBalance(formatEther(nativeBal))
+      if (usdcRaw !== null) setUsdcBalance((Number(usdcRaw) / 1e6).toFixed(2))
+    }
+
+    fetchBalances()
+    const interval = setInterval(fetchBalances, 30_000)
     return () => clearInterval(interval)
   }, [address])
 
@@ -138,11 +148,26 @@ export function WalletButton({ variant = "default" }: WalletButtonProps) {
         {/* Balance Display */}
         <div className="px-2 py-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Balance</span>
+            <span className="text-sm text-muted-foreground">USDC</span>
             <span className="font-semibold text-primary">
+              {usdcBalance !== null ? `${usdcBalance} USDC` : "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">AVAX (gas)</span>
+            <span className="text-xs text-muted-foreground">
               {balance !== null ? `${parseFloat(balance).toFixed(4)} AVAX` : "—"}
             </span>
           </div>
+          <a
+            href="https://traderjoexyz.com/avalanche/swap?inputCurrency=AVAX&outputCurrency=0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors pt-1"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Swap AVAX → USDC on Trader Joe
+          </a>
         </div>
 
         <DropdownMenuSeparator />
