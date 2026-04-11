@@ -38,16 +38,25 @@ export function UserBets() {
   useEffect(() => {
     if (!address) return
     setLoading(true)
-    fetch(`/api/bets?address=${address}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.ok) {
-          setActive(data.active)
-          setHistory(data.history)
-        }
-      })
+
+    const fetchBets = () =>
+      fetch(`/api/bets?address=${address}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            setActive(data.active)
+            setHistory(data.history)
+          }
+        })
+        .catch(() => {})
+
+    // Show cached DB data immediately
+    fetchBets().finally(() => setLoading(false))
+
+    // Sync recent blocks in background, then refresh with fresh data
+    fetch("/api/indexer/sync?recent=true")
+      .then(() => fetchBets())
       .catch(() => {})
-      .finally(() => setLoading(false))
   }, [address])
 
   return (
@@ -93,14 +102,22 @@ export function UserBets() {
                     </Badge>
                     <span className="font-mono font-semibold">{bet.amount} USDC</span>
                   </div>
-                  <a
-                    href={`https://snowtrace.io/tx/${bet.tx_hash}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-muted-foreground hover:text-primary underline"
-                  >
-                    View tx
-                  </a>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={`/market/${bet.market_id}`}
+                      className="text-xs text-primary hover:text-primary/80 underline"
+                    >
+                      View market
+                    </a>
+                    <a
+                      href={`https://snowtrace.io/tx/${bet.tx_hash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-muted-foreground hover:text-primary underline"
+                    >
+                      Tx ↗
+                    </a>
+                  </div>
                 </div>
               </div>
             ))}
@@ -146,8 +163,16 @@ export function UserBets() {
                     </Badge>
                     <span className="font-mono">{bet.amount} USDC</span>
                   </div>
-                  <div className={`font-mono font-semibold ${bet.result === "won" ? "text-primary" : "text-destructive"}`}>
-                    {bet.result === "won" ? `+${bet.payout}` : `-${bet.amount}`} USDC
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={`/market/${bet.market_id}`}
+                      className="text-xs text-primary hover:text-primary/80 underline"
+                    >
+                      View market
+                    </a>
+                    <div className={`font-mono font-semibold ${bet.result === "won" ? "text-primary" : "text-destructive"}`}>
+                      {bet.result === "won" ? `+${bet.payout}` : `-${bet.amount}`} USDC
+                    </div>
                   </div>
                 </div>
               </div>

@@ -77,6 +77,19 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
     return () => clearInterval(interval)
   }, [onChainMarket?.postUrl, onChainMarket?.platform, onChainMarket?.metricType])
 
+  // Self-heal: if the market is expired but not yet resolved, silently trigger the settle cron.
+  // This catches markets that the Railway cron missed.
+  useEffect(() => {
+    if (!onChainMarket) return
+    const now = Math.floor(Date.now() / 1000)
+    const isExpiredUnresolved =
+      (onChainMarket.status === "ACTIVE" || onChainMarket.status === "CLOSED") &&
+      onChainMarket.endTime < now
+    if (isExpiredUnresolved) {
+      fetch("/api/cron/settle-expired").catch(() => {})
+    }
+  }, [onChainMarket?.id, onChainMarket?.status])
+
   // Fetch activity bets for the Activity tab
   useEffect(() => {
     if (isNaN(numericId)) return
