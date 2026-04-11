@@ -383,6 +383,9 @@ export function useBuyShares() {
         setTxHash(tx.hash)
         await tx.wait()
 
+        // Fire indexer sync so RecentBets + OddsChart reflect new bet immediately
+        fetch("/api/indexer/sync").catch(() => {})
+
         toast.success("Bet placed successfully! ⚡", {
           id: toastId,
           description: `${amountAvax} ${settlement.tokenSymbol} on ${isOver ? "Over" : "Under"}`,
