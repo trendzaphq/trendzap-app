@@ -383,8 +383,8 @@ export function useBuyShares() {
         setTxHash(tx.hash)
         await tx.wait()
 
-        // Fire indexer sync so RecentBets + OddsChart reflect new bet immediately
-        fetch("/api/indexer/sync").catch(() => {})
+        // Fire recent-only indexer sync so RecentBets + OddsChart reflect new bet immediately
+        fetch("/api/indexer/sync?recent=true").catch(() => {})
 
         toast.success("Bet placed successfully! ⚡", {
           id: toastId,

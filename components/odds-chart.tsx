@@ -42,8 +42,8 @@ export function OddsChart({ marketId, threshold }: OddsChartProps) {
     // Show cached data immediately
     fetchHistory().finally(() => setLoading(false))
 
-    // Trigger indexer sync in background, then refresh chart data
-    fetch("/api/indexer/sync")
+    // Trigger recent-only indexer sync in background, then refresh chart data
+    fetch("/api/indexer/sync?recent=true")
       .then(() => fetchHistory())
       .catch(() => {})
   }, [marketId])

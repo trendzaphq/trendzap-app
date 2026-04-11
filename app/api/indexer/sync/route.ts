@@ -27,14 +27,25 @@ const EVENTS = {
   ),
 }
 
-async function runSync() {
+async function runSync(recentOnly = false) {
   await ensureSchema()
 
   const client = createPublicClient({ chain: avalanche, transport: http() })
   const latestBlock = await client.getBlockNumber()
 
   const lastSynced = await getIndexerState("last_block")
-  let fromBlock = lastSynced ? BigInt(lastSynced) + BigInt(1) : DEFAULT_START_BLOCK
+
+  let fromBlock: bigint
+  if (recentOnly) {
+    // Scan only the last 1000 blocks — fast path that catches recent activity
+    // regardless of where the historical sync is up to.
+    // Does NOT advance last_block so the full historical sync continues independently.
+    const recentStart = latestBlock > 1000n ? latestBlock - 1000n : 0n
+    const historicalNext = lastSynced ? BigInt(lastSynced) + 1n : DEFAULT_START_BLOCK
+    fromBlock = historicalNext > recentStart ? historicalNext : recentStart
+  } else {
+    fromBlock = lastSynced ? BigInt(lastSynced) + 1n : DEFAULT_START_BLOCK
+  }
 
   let blocksProcessed = 0
   let betsIndexed = 0
@@ -42,9 +53,9 @@ async function runSync() {
   let claimsIndexed = 0
 
   while (fromBlock <= latestBlock) {
-    const toBlock = fromBlock + BATCH_SIZE - BigInt(1) > latestBlock
+    const toBlock = fromBlock + BATCH_SIZE - 1n > latestBlock
       ? latestBlock
-      : fromBlock + BATCH_SIZE - BigInt(1)
+      : fromBlock + BATCH_SIZE - 1n
 
     const [betLogs, resolvedLogs, claimLogs] = await Promise.all([
       client.getLogs({ address: CONTRACT, event: EVENTS.SharesBought, fromBlock, toBlock }),
@@ -94,19 +105,23 @@ async function runSync() {
       claimsIndexed++
     }
 
-    blocksProcessed += Number(toBlock - fromBlock + BigInt(1))
-    fromBlock = toBlock + BigInt(1)
+    blocksProcessed += Number(toBlock - fromBlock + 1n)
+    fromBlock = toBlock + 1n
 
     if (blocksProcessed >= 40000) break
   }
 
-  await setIndexerState("last_block", String(fromBlock - BigInt(1)))
+  // Only advance last_block for the full historical sync, not for recent-only scans
+  if (!recentOnly) {
+    await setIndexerState("last_block", String(fromBlock - 1n))
+  }
 
   return {
     ok: true,
+    recentOnly,
     blocksProcessed,
     latestBlock: String(latestBlock),
-    newLastBlock: String(fromBlock - BigInt(1)),
+    newLastBlock: recentOnly ? (lastSynced ?? String(DEFAULT_START_BLOCK)) : String(fromBlock - 1n),
     betsIndexed,
     resolutionsIndexed,
     claimsIndexed,
@@ -131,9 +146,12 @@ export async function POST(request: Request) {
 }
 
 // GET — unprotected, allows manual browser triggers and health checks
-export async function GET() {
+// ?recent=true  → fast scan of last 1000 blocks only (for UI triggers after bet)
+// (no param)    → full historical sync from last_block
+export async function GET(request: Request) {
   try {
-    return NextResponse.json(await runSync())
+    const recent = new URL(request.url).searchParams.get("recent") === "true"
+    return NextResponse.json(await runSync(recent))
   } catch (err) {
     console.error("[indexer/sync]", err)
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })
