@@ -26,7 +26,7 @@ import {
 import { usePrivy } from "@privy-io/react-auth"
 import { useMarket, useBuyShares, useClaimWinnings, useUserPosition } from "@/hooks/use-market"
 import { useCountdown } from "@/hooks/use-countdown"
-import { formatEther } from "viem"
+import { formatEther, formatUnits } from "viem"
 import { toast } from "sonner"
 import { OddsChart } from "@/components/odds-chart"
 import { ShareToX } from "@/components/share-to-x"
@@ -51,7 +51,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const [showSuccess, setShowSuccess] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [meta, setMeta] = useState<{ title: string | null; thumbnail_url: string | null } | null>(null)
-  const [liveMetric, setLiveMetric] = useState<number>(0)
+  const [liveMetric, setLiveMetric] = useState<number | null>(null)
   const [activityBets, setActivityBets] = useState<Array<{ address: string; short: string; avatar: string; position: string; amount: string; time: string | null; tx_hash: string }>>([])
   const [activityLoading, setActivityLoading] = useState(true)
 
@@ -70,7 +70,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
       fetch(`/api/oracle/metrics?url=${encodeURIComponent(onChainMarket.postUrl)}&platform=${onChainMarket.platform}&metric=${onChainMarket.metricType}`)
         .then((r) => r.json())
         .then((d) => { if (d.ok && typeof d.value === "number") setLiveMetric(d.value) })
-        .catch(() => {})
+        .catch(() => { /* leave as null = unavailable */ })
     }
     fetchMetric()
     const interval = setInterval(fetchMetric, 60_000)
@@ -86,7 +86,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
       (onChainMarket.status === "ACTIVE" || onChainMarket.status === "CLOSED") &&
       onChainMarket.endTime < now
     if (isExpiredUnresolved) {
-      fetch("/api/cron/settle-expired").catch(() => {})
+      fetch("/api/admin/trigger-settle").catch(() => {})
     }
   }, [onChainMarket?.id, onChainMarket?.status])
 
@@ -126,7 +126,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
         title: meta?.title || `Will ${onChainMarket.postUrl} hit ${Number(onChainMarket.threshold).toLocaleString()} ${onChainMarket.metricType}?`,
         metric: onChainMarket.metricType.charAt(0).toUpperCase() + onChainMarket.metricType.slice(1),
         threshold: Number(onChainMarket.threshold),
-        currentValue: liveMetric, // live metric from oracle
+        currentValue: liveMetric ?? 0, // null = not yet loaded
         overPool: onChainMarket.priceOver,
         underPool: onChainMarket.priceUnder,
         totalBets: 0,
@@ -279,7 +279,13 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">{"Current Value"}</span>
-                <span className="font-mono font-bold text-lg">{market.currentValue.toLocaleString()}</span>
+                <span className="font-mono font-bold text-lg">
+                  {liveMetric === null ? (
+                    <span className="text-muted-foreground text-sm">Fetching...</span>
+                  ) : (
+                    market.currentValue.toLocaleString()
+                  )}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">{"Threshold"}</span>
@@ -287,7 +293,9 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-border">
                 <span className="text-muted-foreground">{"Progress"}</span>
-                <span className="font-semibold">{((market.currentValue / market.threshold) * 100).toFixed(1)}%</span>
+                <span className="font-semibold">
+                  {liveMetric === null ? "—" : `${((market.currentValue / market.threshold) * 100).toFixed(1)}%`}
+                </span>
               </div>
             </div>
 
@@ -393,17 +401,28 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               </div>
             )}
 
-            {/* Already claimed — show disabled button with hover feedback */}
+            {/* Already claimed — show disabled button with helpful context */}
             {alreadyClaimed && hasAnyPosition && (
-              <div className="mb-4 p-4 bg-muted/40 border border-border rounded-lg">
+              <div className="mb-4 p-4 bg-muted/40 border border-border rounded-lg space-y-2">
                 <Button
                   disabled
                   className="w-full gap-2 opacity-60 cursor-not-allowed"
-                  onMouseEnter={() => toast.info("You've already claimed your winnings for this market.", { duration: 2500 })}
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {isCancelled ? "Refund Claimed" : "Winnings Claimed"}
                 </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  The contract shows this position was already claimed.{" "}
+                  <a
+                    href="https://snowtrace.io/address/0xbB898682B2BbD8cF19c33179b783ed172168BB6d?chainid=43114"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Check Snowtrace
+                  </a>
+                  {" "}to verify the transaction.
+                </p>
               </div>
             )}
 
@@ -414,13 +433,13 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 {position.overShares > 0n && (
                   <div className="flex justify-between text-sm">
                     <span className="text-primary font-semibold">Over Shares</span>
-                    <span className="font-mono">{formatEther(position.overShares)}</span>
+                    <span className="font-mono">{formatUnits(position.overShares, 6)}</span>
                   </div>
                 )}
                 {position.underShares > 0n && (
                   <div className="flex justify-between text-sm">
                     <span className="text-destructive font-semibold">Under Shares</span>
-                    <span className="font-mono">{formatEther(position.underShares)}</span>
+                    <span className="font-mono">{formatUnits(position.underShares, 6)}</span>
                   </div>
                 )}
               </div>

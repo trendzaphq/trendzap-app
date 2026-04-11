@@ -31,7 +31,13 @@ export async function GET(req: NextRequest) {
     if (!res.ok || !data.success) {
       return NextResponse.json({ ok: false, error: data.error || "oracle error" }, { status: 502 })
     }
-    return NextResponse.json({ ok: true, value: data.data?.value ?? 0, confidence: data.data?.confidence ?? null })
+    const value = data.data?.value
+    const confidence = data.data?.confidence ?? null
+    // If oracle couldn't fetch a real value, report it as unavailable
+    if (value == null) {
+      return NextResponse.json({ ok: false, error: "metric not available" }, { status: 502 })
+    }
+    return NextResponse.json({ ok: true, value, confidence })
   } catch (err) {
     console.error("[oracle/metrics]", err)
     return NextResponse.json({ ok: false, error: String(err) }, { status: 502 })
