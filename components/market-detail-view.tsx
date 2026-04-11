@@ -67,10 +67,18 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
     if (!onChainMarket?.postUrl || !onChainMarket?.platform || !onChainMarket?.metricType) return
     const fetchMetric = () => {
       if (document.hidden) return
-      fetch(`/api/oracle/metrics?url=${encodeURIComponent(onChainMarket.postUrl)}&platform=${onChainMarket.platform}&metric=${onChainMarket.metricType}`)
+      fetch(`/api/oracle/metrics?url=${encodeURIComponent(onChainMarket.postUrl)}&platform=${onChainMarket.platform}&metric=${onChainMarket.metricType}`,
+        { signal: AbortSignal.timeout(15_000) }
+      )
         .then((r) => r.json())
-        .then((d) => { if (d.ok && typeof d.value === "number") setLiveMetric(d.value) })
-        .catch(() => { /* leave as null = unavailable */ })
+        .then((d) => {
+          if (d.ok && typeof d.value === "number") {
+            setLiveMetric(d.value)
+          } else {
+            setLiveMetric(-1) // -1 = unavailable (distinct from null = loading)
+          }
+        })
+        .catch(() => { setLiveMetric(-1) })
     }
     fetchMetric()
     const interval = setInterval(fetchMetric, 60_000)
@@ -93,7 +101,9 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   // Fetch activity bets for the Activity tab
   useEffect(() => {
     if (isNaN(numericId)) return
-    fetch(`/api/markets/${numericId}/bets`)
+    // Trigger a recent-only indexer sync first so other users' bets appear
+    fetch("/api/indexer/sync?recent=true")
+      .then(() => fetch(`/api/markets/${numericId}/bets`))
       .then((r) => r.json())
       .then((d) => { if (d.ok) setActivityBets(d.bets) })
       .catch(() => {})
@@ -281,7 +291,9 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 <span className="text-muted-foreground">{"Current Value"}</span>
                 <span className="font-mono font-bold text-lg">
                   {liveMetric === null ? (
-                    <span className="text-muted-foreground text-sm">Fetching...</span>
+                    <span className="text-muted-foreground text-sm flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Fetching...</span>
+                  ) : liveMetric < 0 ? (
+                    <span className="text-muted-foreground text-sm">Unavailable</span>
                   ) : (
                     market.currentValue.toLocaleString()
                   )}
@@ -294,7 +306,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               <div className="flex justify-between items-center pt-3 border-t border-border">
                 <span className="text-muted-foreground">{"Progress"}</span>
                 <span className="font-semibold">
-                  {liveMetric === null ? "—" : `${((market.currentValue / market.threshold) * 100).toFixed(1)}%`}
+                  {liveMetric === null || liveMetric < 0 ? "—" : `${((market.currentValue / market.threshold) * 100).toFixed(1)}%`}
                 </span>
               </div>
             </div>
