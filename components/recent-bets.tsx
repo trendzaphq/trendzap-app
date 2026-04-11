@@ -32,8 +32,8 @@ export function RecentBets({ marketId }: { marketId: string }) {
     // Show whatever is cached in DB immediately
     fetchBets().finally(() => setLoading(false))
 
-    // Trigger indexer sync in background, then refresh with fresh chain data
-    fetch("/api/indexer/sync")
+    // Trigger recent-only indexer sync in background, then refresh with fresh chain data
+    fetch("/api/indexer/sync?recent=true")
       .then(() => fetchBets())
       .catch(() => {})
   }, [marketId])
