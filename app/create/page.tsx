@@ -296,7 +296,7 @@ export default function CreateMarketPage() {
     const firstMetric = metricCombos[0]?.metric ?? "views"
     const currentValue = currentStats?.[firstMetric] ?? 0
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_RISK_URL}/assess`, {
+      const res = await fetch("/api/risk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
