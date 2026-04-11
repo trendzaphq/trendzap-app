@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -86,14 +86,16 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   }, [onChainMarket?.postUrl, onChainMarket?.platform, onChainMarket?.metricType])
 
   // Self-heal: if the market is expired but not yet resolved, silently trigger the settle cron.
-  // This catches markets that the Railway cron missed.
+  // This catches markets that the Railway cron missed. Only fires once per page load.
+  const settleTriggered = useRef(false)
   useEffect(() => {
-    if (!onChainMarket) return
+    if (!onChainMarket || settleTriggered.current) return
     const now = Math.floor(Date.now() / 1000)
     const isExpiredUnresolved =
       (onChainMarket.status === "ACTIVE" || onChainMarket.status === "CLOSED") &&
       onChainMarket.endTime < now
     if (isExpiredUnresolved) {
+      settleTriggered.current = true
       fetch("/api/admin/trigger-settle").catch(() => {})
     }
   }, [onChainMarket?.id, onChainMarket?.status])
@@ -101,13 +103,18 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   // Fetch activity bets for the Activity tab
   useEffect(() => {
     if (isNaN(numericId)) return
-    // Trigger a recent-only indexer sync first so other users' bets appear
-    fetch("/api/indexer/sync?recent=true")
-      .then(() => fetch(`/api/markets/${numericId}/bets`))
+    // Fetch existing bets immediately
+    fetch(`/api/markets/${numericId}/bets`)
       .then((r) => r.json())
       .then((d) => { if (d.ok) setActivityBets(d.bets) })
       .catch(() => {})
       .finally(() => setActivityLoading(false))
+    // Trigger indexer sync in background, then refresh bets
+    fetch("/api/indexer/sync?recent=true")
+      .then(() => fetch(`/api/markets/${numericId}/bets`))
+      .then((r) => r?.json())
+      .then((d) => { if (d?.ok) setActivityBets(d.bets) })
+      .catch(() => {})
   }, [numericId])
 
   // Fallback mock data for when contracts aren't deployed yet

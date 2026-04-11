@@ -37,10 +37,9 @@ async function runSync(recentOnly = false) {
 
   let fromBlock: bigint
   if (recentOnly) {
-    // Scan only the last 1000 blocks — fast path that catches recent activity
-    // regardless of where the historical sync is up to.
+    // Scan the last 5000 blocks (~2.5 hours on Avalanche C-Chain)
     // Does NOT advance last_block so the full historical sync continues independently.
-    const recentStart = latestBlock > 1000n ? latestBlock - 1000n : 0n
+    const recentStart = latestBlock > 5000n ? latestBlock - 5000n : 0n
     const historicalNext = lastSynced ? BigInt(lastSynced) + 1n : DEFAULT_START_BLOCK
     fromBlock = historicalNext > recentStart ? historicalNext : recentStart
   } else {
