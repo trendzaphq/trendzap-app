@@ -54,7 +54,7 @@ async function fetchOracleMetric(
   }
 }
 
-async function run() {
+export async function run() {
   const privateKey = process.env.ADMIN_PRIVATE_KEY
   if (!privateKey) {
     return { ok: false, error: "ADMIN_PRIVATE_KEY not configured" }

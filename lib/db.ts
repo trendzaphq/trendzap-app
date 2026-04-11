@@ -247,6 +247,8 @@ export interface UserStats {
   total_users: number
   total_bets: number
   total_volume_usdc: string
+  total_payouts_usdc: string
+  total_revenue_usdc: string
 }
 
 export async function getUserStats(): Promise<UserStats> {
@@ -254,13 +256,20 @@ export async function getUserStats(): Promise<UserStats> {
     SELECT
       (SELECT COUNT(*)::int FROM users) AS total_users,
       (SELECT COUNT(*)::int FROM bet_events) AS total_bets,
-      COALESCE((SELECT SUM(CAST(cost_wei AS NUMERIC))::TEXT FROM bet_events), '0') AS total_volume_usdc
+      COALESCE((SELECT SUM(CAST(cost_wei AS NUMERIC))::TEXT FROM bet_events), '0') AS total_volume_usdc,
+      COALESCE((SELECT SUM(CAST(payout_wei AS NUMERIC))::TEXT FROM claim_events), '0') AS total_payouts_usdc,
+      (
+        COALESCE((SELECT SUM(CAST(cost_wei AS NUMERIC)) FROM bet_events), 0) -
+        COALESCE((SELECT SUM(CAST(payout_wei AS NUMERIC)) FROM claim_events), 0)
+      )::TEXT AS total_revenue_usdc
   `
   const row = (results as UserStats[])[0]
   return {
     total_users: row?.total_users ?? 0,
     total_bets: row?.total_bets ?? 0,
     total_volume_usdc: row?.total_volume_usdc ?? "0",
+    total_payouts_usdc: row?.total_payouts_usdc ?? "0",
+    total_revenue_usdc: row?.total_revenue_usdc ?? "0",
   }
 }
 

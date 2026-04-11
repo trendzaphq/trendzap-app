@@ -449,7 +449,7 @@ export default function AdminPage() {
   const [syncResult, setSyncResult] = useState<string | null>(null)
   const [settleLoading, setSettleLoading] = useState(false)
   const [liveMetrics, setLiveMetrics] = useState<Record<number, string>>({})
-  const [userStats, setUserStats] = useState<{ total_users: number; total_bets: number } | null>(null)
+  const [userStats, setUserStats] = useState<{ total_users: number; total_bets: number; total_revenue_usdc: string; total_payouts_usdc: string } | null>(null)
 
   // ── Health check polling ──────────────────────────
   const checkHealth = useCallback(async () => {
@@ -509,7 +509,7 @@ export default function AdminPage() {
   const triggerAutoSettle = async () => {
     setSettleLoading(true)
     try {
-      const res = await fetch("/api/cron/settle-expired")
+      const res = await fetch("/api/admin/trigger-settle")
       const data = await res.json()
       if (data.ok) {
         const settled = data.settled?.length ?? 0
@@ -526,16 +526,13 @@ export default function AdminPage() {
     }
   }
 
-  const ORACLE_BASE = process.env.NEXT_PUBLIC_ORACLE_URL || "https://trendzap-oracle-production.up.railway.app"
-  const PLATFORM_ORACLE_MAP: Record<string, string> = { x: "twitter", youtube: "youtube", tiktok: "tiktok", instagram: "instagram" }
-
   const fetchLiveMetric = async (market: MarketData) => {
     setLiveMetrics((prev) => ({ ...prev, [market.id]: "…" }))
     try {
-      const platform = PLATFORM_ORACLE_MAP[market.platform] ?? "twitter"
+      // Use server-side proxy to avoid CORS issues
       const res = await fetch(
-        `${ORACLE_BASE}/api/v1/metrics?url=${encodeURIComponent(market.postUrl)}&platform=${platform}&metric=${market.metricType}`,
-        { signal: AbortSignal.timeout(10_000) }
+        `/api/admin/oracle-metric?url=${encodeURIComponent(market.postUrl)}&platform=${market.platform}&metric=${market.metricType}`,
+        { signal: AbortSignal.timeout(15_000) }
       )
       const data = await res.json()
       const val = data?.data?.value
@@ -658,6 +655,18 @@ export default function AdminPage() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Volume</CardTitle></CardHeader>
           <CardContent><p className="text-3xl font-bold">{totalVolumeEth} <span className="text-sm font-normal">USDC</span></p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Protocol Revenue</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-emerald-400">
+              {userStats?.total_revenue_usdc != null
+                ? `${(Number(BigInt(userStats.total_revenue_usdc)) / 1e6).toFixed(4)}`
+                : "—"}
+              <span className="text-sm font-normal"> USDC</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Bets − Payouts</p>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total Users</CardTitle></CardHeader>

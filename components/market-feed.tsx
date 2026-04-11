@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { MarketCard } from "@/components/market-card"
 import { Loader2, TrendingUp } from "lucide-react"
 import { useMarketList } from "@/hooks/use-market"
@@ -20,6 +20,7 @@ interface MarketFeedProps {
 export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps) {
   const { markets: onChainMarkets, loading: contractsLoading } = useMarketList()
   const [metaMap, setMetaMap] = useState<Record<number, MarketMeta>>({})
+  const seededRef = useRef<Set<number>>(new Set())
 
   useEffect(() => {
     fetch("/api/markets")
@@ -31,6 +32,37 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
       })
       .catch(() => {})
   }, [])
+
+  // Auto-seed metadata (+ UUID slug) for any on-chain markets with no DB entry
+  useEffect(() => {
+    if (contractsLoading || onChainMarkets.length === 0) return
+    const missing = onChainMarkets.filter(
+      (m) => (!metaMap[m.id] || !metaMap[m.id].slug) && !seededRef.current.has(m.id)
+    )
+    if (missing.length === 0) return
+    missing.forEach((m) => seededRef.current.add(m.id))
+    Promise.all(
+      missing.map((m) =>
+        fetch("/api/markets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ market_id: m.id, title: null }),
+        })
+          .then((r) => r.json())
+          .then((data: { ok: boolean; slug?: string }) => ({ id: m.id, slug: data.slug ?? null }))
+          .catch(() => null)
+      )
+    ).then((results) => {
+      setMetaMap((prev) => {
+        const updated = { ...prev }
+        results.forEach((r) => {
+          if (r?.slug) updated[r.id] = { market_id: r.id, slug: r.slug, title: null, thumbnail_url: null }
+        })
+        return updated
+      })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractsLoading, onChainMarkets.length, Object.keys(metaMap).length])
 
   const now = Math.floor(Date.now() / 1000)
 
