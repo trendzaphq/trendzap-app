@@ -447,6 +447,8 @@ export default function AdminPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
+  const [settleLoading, setSettleLoading] = useState(false)
+  const [liveMetrics, setLiveMetrics] = useState<Record<number, string>>({})
   const [userStats, setUserStats] = useState<{ total_users: number; total_bets: number } | null>(null)
 
   // ── Health check polling ──────────────────────────
@@ -504,6 +506,48 @@ export default function AdminPage() {
     }
   }
 
+  const triggerAutoSettle = async () => {
+    setSettleLoading(true)
+    try {
+      const res = await fetch("/api/cron/settle-expired")
+      const data = await res.json()
+      if (data.ok) {
+        const settled = data.settled?.length ?? 0
+        const skipped = data.skipped?.length ?? 0
+        toast.success(`Auto-settle done: ${settled} settled, ${skipped} skipped`)
+        if (settled > 0) window.location.reload()
+      } else {
+        toast.error(data.error ?? "Auto-settle failed — check ADMIN_PRIVATE_KEY env var")
+      }
+    } catch {
+      toast.error("Auto-settle request failed")
+    } finally {
+      setSettleLoading(false)
+    }
+  }
+
+  const ORACLE_BASE = process.env.NEXT_PUBLIC_ORACLE_URL || "https://trendzap-oracle-production.up.railway.app"
+  const PLATFORM_ORACLE_MAP: Record<string, string> = { x: "twitter", youtube: "youtube", tiktok: "tiktok", instagram: "instagram" }
+
+  const fetchLiveMetric = async (market: MarketData) => {
+    setLiveMetrics((prev) => ({ ...prev, [market.id]: "…" }))
+    try {
+      const platform = PLATFORM_ORACLE_MAP[market.platform] ?? "twitter"
+      const res = await fetch(
+        `${ORACLE_BASE}/api/v1/metrics?url=${encodeURIComponent(market.postUrl)}&platform=${platform}&metric=${market.metricType}`,
+        { signal: AbortSignal.timeout(10_000) }
+      )
+      const data = await res.json()
+      const val = data?.data?.value
+      setLiveMetrics((prev) => ({
+        ...prev,
+        [market.id]: val != null ? Number(val).toLocaleString() : "N/A",
+      }))
+    } catch {
+      setLiveMetrics((prev) => ({ ...prev, [market.id]: "Error" }))
+    }
+  }
+
   const connectedAddress = wallets[0]?.address
   const isAdmin = connectedAddress?.toLowerCase() === ADMIN_ADDRESS
 
@@ -558,6 +602,9 @@ export default function AdminPage() {
         <div className="flex gap-2 flex-wrap">
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             + Create Market
+          </Button>
+          <Button size="sm" variant="outline" onClick={triggerAutoSettle} disabled={settleLoading}>
+            {settleLoading ? "Settling…" : "⚡ Auto-Settle"}
           </Button>
           <Button size="sm" variant="outline" onClick={syncIndexer} disabled={syncLoading}>
             {syncLoading ? "Syncing…" : "Sync Indexer"}
@@ -666,6 +713,7 @@ export default function AdminPage() {
                   <TableHead>Post / Platform</TableHead>
                   <TableHead>Metric</TableHead>
                   <TableHead>Threshold</TableHead>
+                  <TableHead>Live Value</TableHead>
                   <TableHead>Volume</TableHead>
                   <TableHead>End Time</TableHead>
                   <TableHead>Status</TableHead>
@@ -697,6 +745,31 @@ export default function AdminPage() {
                       </TableCell>
                       <TableCell className="capitalize text-xs">{m.metricType}</TableCell>
                       <TableCell className="text-xs font-mono">{m.threshold.toString()}</TableCell>
+                      <TableCell className="text-xs">
+                        {liveMetrics[m.id] != null ? (
+                          <span className={`font-mono font-semibold ${
+                            liveMetrics[m.id] === "…" ? "text-muted-foreground" :
+                            liveMetrics[m.id] === "Error" || liveMetrics[m.id] === "N/A" ? "text-destructive/70" :
+                            Number(liveMetrics[m.id].replace(/,/g, "")) >= Number(m.threshold) ? "text-primary" : "text-muted-foreground"
+                          }`}>
+                            {liveMetrics[m.id]}
+                            {liveMetrics[m.id] !== "…" && liveMetrics[m.id] !== "Error" && liveMetrics[m.id] !== "N/A" && (
+                              <span className="ml-1 text-muted-foreground font-normal">
+                                {Number(liveMetrics[m.id].replace(/,/g, "")) >= Number(m.threshold) ? "✓ OVER" : "✗ UNDER"}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
+                            onClick={() => fetchLiveMetric(m)}
+                          >
+                            Fetch
+                          </Button>
+                        )}
+                      </TableCell>
                       <TableCell className="text-xs">{m.totalVolume} USDC</TableCell>
                       <TableCell className="text-xs">
                         {endDate.toLocaleDateString()} {endDate.toLocaleTimeString()}
@@ -726,12 +799,12 @@ export default function AdminPage() {
                             </Button>
                           )}
                           <a
-                            href={`${EXPLORER_URL}/address/${CONTRACTS.market}`}
+                            href={`/market/${m.id}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground px-1"
+                            className="inline-flex items-center text-xs text-muted-foreground hover:text-primary px-1"
                           >
-                            ↗
+                            View ↗
                           </a>
                         </div>
                       </TableCell>
