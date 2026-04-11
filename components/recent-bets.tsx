@@ -22,11 +22,20 @@ export function RecentBets({ marketId }: { marketId: string }) {
 
   useEffect(() => {
     if (!marketId) return
-    fetch(`/api/markets/${marketId}/bets`)
-      .then((r) => r.json())
-      .then((d) => { if (d.ok) setBets(d.bets) })
+
+    const fetchBets = () =>
+      fetch(`/api/markets/${marketId}/bets`)
+        .then((r) => r.json())
+        .then((d) => { if (d.ok) setBets(d.bets) })
+        .catch(() => {})
+
+    // Show whatever is cached in DB immediately
+    fetchBets().finally(() => setLoading(false))
+
+    // Trigger indexer sync in background, then refresh with fresh chain data
+    fetch("/api/indexer/sync")
+      .then(() => fetchBets())
       .catch(() => {})
-      .finally(() => setLoading(false))
   }, [marketId])
 
   return (

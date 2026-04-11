@@ -33,11 +33,19 @@ export function OddsChart({ marketId, threshold }: OddsChartProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/markets/${marketId}/price-history`)
-      .then((r) => r.json())
-      .then((d) => { if (d.ok) setData(d.points) })
+    const fetchHistory = () =>
+      fetch(`/api/markets/${marketId}/price-history`)
+        .then((r) => r.json())
+        .then((d) => { if (d.ok) setData(d.points) })
+        .catch(() => {})
+
+    // Show cached data immediately
+    fetchHistory().finally(() => setLoading(false))
+
+    // Trigger indexer sync in background, then refresh chart data
+    fetch("/api/indexer/sync")
+      .then(() => fetchHistory())
       .catch(() => {})
-      .finally(() => setLoading(false))
   }, [marketId])
 
   if (loading) {

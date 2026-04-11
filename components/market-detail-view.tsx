@@ -52,6 +52,8 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [meta, setMeta] = useState<{ title: string | null; thumbnail_url: string | null } | null>(null)
   const [liveMetric, setLiveMetric] = useState<number>(0)
+  const [activityBets, setActivityBets] = useState<Array<{ address: string; short: string; avatar: string; position: string; amount: string; time: string | null; tx_hash: string }>>([])
+  const [activityLoading, setActivityLoading] = useState(true)
 
   useEffect(() => {
     fetch(`/api/markets/${numericId}`)
@@ -74,6 +76,16 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
     const interval = setInterval(fetchMetric, 60_000)
     return () => clearInterval(interval)
   }, [onChainMarket?.postUrl, onChainMarket?.platform, onChainMarket?.metricType])
+
+  // Fetch activity bets for the Activity tab
+  useEffect(() => {
+    if (isNaN(numericId)) return
+    fetch(`/api/markets/${numericId}/bets`)
+      .then((r) => r.json())
+      .then((d) => { if (d.ok) setActivityBets(d.bets) })
+      .catch(() => {})
+      .finally(() => setActivityLoading(false))
+  }, [numericId])
 
   // Fallback mock data for when contracts aren't deployed yet
   const mockMarket = {
@@ -143,6 +155,13 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
         await buyShares(numericId, selectedPosition === "over", betAmount)
         setShowSuccess(true)
         refetch()
+        // Re-fetch activity bets after sync runs (indexer sync was fired inside buyShares)
+        setTimeout(() => {
+          fetch(`/api/markets/${numericId}/bets`)
+            .then((r) => r.json())
+            .then((d) => { if (d.ok) setActivityBets(d.bets) })
+            .catch(() => {})
+        }, 3000)
         setTimeout(() => setShowSuccess(false), 5000)
       } catch {
         // error is already captured in buyError
@@ -570,10 +589,37 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="activity" className="mt-6">
-            <div className="text-center text-muted-foreground py-8">{"Live activity feed coming soon"}</div>
+            {activityLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : activityBets.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 text-sm">No bets yet — be the first to Zap it!</div>
+            ) : (
+              <div className="space-y-2">
+                {activityBets.map((bet, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                      {bet.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm">{bet.short}</span>
+                        <Badge variant="outline" className={`gap-1 text-xs ${bet.position === "over" ? "border-primary/30 text-primary" : "border-destructive/30 text-destructive"}`}>
+                          {bet.position === "over" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                          {bet.position}
+                        </Badge>
+                        {bet.time && <span className="text-xs text-muted-foreground">{bet.time}</span>}
+                      </div>
+                    </div>
+                    <div className="font-mono font-semibold text-sm shrink-0">${bet.amount}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
           <TabsContent value="chart" className="mt-6">
-            <div className="text-center text-muted-foreground py-8">{"Real-time chart coming soon"}</div>
+            <OddsChart marketId={numericId} />
           </TabsContent>
           <TabsContent value="info" className="mt-6">
             <div className="space-y-4">
