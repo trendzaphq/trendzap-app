@@ -27,40 +27,111 @@ const PLATFORM_MAP: Record<string, string> = {
   instagram: "instagram",
 }
 
+const TWITTER_METRIC_MAP: Record<string, string> = {
+  likes: "like_count",
+  views: "view_count",
+  retweets: "retweet_count",
+  replies: "reply_count",
+  comments: "reply_count",
+}
+
 const PLATFORMS_ENUM = ["x", "youtube", "tiktok", "instagram"] as const
 const METRICS_ENUM = ["likes", "views", "retweets", "comments", "shares"] as const
 
 // STATUS: 0=PENDING, 1=ACTIVE, 2=CLOSED, 3=RESOLVED, 4=CANCELLED, 5=DISPUTED
 const SETTLEABLE_STATUSES = new Set([1, 2]) // ACTIVE and CLOSED
 
+function extractTweetId(url: string): string | null {
+  const match = url.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/)
+  return match ? match[2] : null
+}
+function extractTweetUsername(url: string): string | null {
+  const match = url.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/\d+/)
+  return match ? match[1] : null
+}
+
+async function fetchTwitterFallback(postUrl: string, metric: string): Promise<number | null> {
+  const tweetId = extractTweetId(postUrl)
+  const username = extractTweetUsername(postUrl)
+  if (!tweetId || !username) return null
+  const metricKey = TWITTER_METRIC_MAP[metric]
+  if (!metricKey) return null
+
+  try {
+    const res = await fetch(`https://api.fxtwitter.com/${username}/status/${tweetId}`, {
+      signal: AbortSignal.timeout(8_000),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      const t = data.tweet
+      if (t) {
+        const map: Record<string, number | undefined> = {
+          like_count: t.likes, retweet_count: t.retweets,
+          reply_count: t.replies, view_count: t.views,
+        }
+        const val = map[metricKey]
+        if (val != null) return val
+      }
+    }
+  } catch { /* fall through */ }
+
+  try {
+    const token = ((Number(tweetId) / 1e15) * Math.PI).toString(6).replace(/(.).*\1/, "").slice(-6)
+    const res = await fetch(
+      `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&lang=en&token=${token}`,
+      { signal: AbortSignal.timeout(5_000) }
+    )
+    if (res.ok) {
+      const s = await res.json()
+      const map: Record<string, number | undefined> = {
+        like_count: s.favorite_count, retweet_count: s.retweet_count,
+        reply_count: s.conversation_count,
+        view_count: s.views?.count ? parseInt(s.views.count, 10) : undefined,
+      }
+      const val = map[metricKey]
+      if (val != null) return val
+    }
+  } catch { /* fall through */ }
+
+  return null
+}
+
 async function fetchOracleMetric(
   postUrl: string,
   platform: string,
   metric: string
 ): Promise<number | null> {
+  const oraclePlatform = PLATFORM_MAP[platform] ?? platform
+
+  // Try oracle first
   try {
-    const oraclePlatform = PLATFORM_MAP[platform] ?? platform
     const res = await fetch(
       `${ORACLE_URL}/api/v1/metrics?url=${encodeURIComponent(postUrl)}&platform=${oraclePlatform}&metric=${metric}`,
       { signal: AbortSignal.timeout(12_000) }
     )
-    if (!res.ok) return null
-    const data = await res.json()
-    if (!data.success) return null
-    const val = data.data?.value
-    return typeof val === "number" ? val : null
-  } catch {
-    return null
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success && typeof data.data?.value === "number") return data.data.value
+    }
+  } catch { /* fall through */ }
+
+  // Fallback for Twitter
+  if (oraclePlatform === "twitter") {
+    return fetchTwitterFallback(postUrl, metric)
   }
+
+  return null
 }
 
 export async function run() {
-  const privateKey = process.env.ADMIN_PRIVATE_KEY
-  if (!privateKey) {
+  const rawKey = process.env.ADMIN_PRIVATE_KEY
+  if (!rawKey) {
     return { ok: false, error: "ADMIN_PRIVATE_KEY not configured" }
   }
+  // Ensure 0x prefix — viem requires it
+  const privateKey = (rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`) as `0x${string}`
 
-  const account = privateKeyToAccount(privateKey as `0x${string}`)
+  const account = privateKeyToAccount(privateKey)
   const transport = http(process.env.NEXT_PUBLIC_RPC_URL)
   const publicClient = createPublicClient({ chain: avalanche, transport })
   const walletClient = createWalletClient({ account, chain: avalanche, transport })

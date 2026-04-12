@@ -4,6 +4,11 @@ import { ensureSchema, getLeaderboard } from "@/lib/db"
 const formatUsdc = (raw: string | bigint) => Number(BigInt(raw)) / 1e6
 
 export async function GET(req: Request) {
+  // Trigger a recent-only indexer sync in the background so leaderboard
+  // stays fresh without blocking the response.
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${req.headers?.get?.("host") ?? "localhost:3000"}`
+  fetch(`${baseUrl}/api/indexer/sync?recent=true`).catch(() => {})
+
   try {
     await ensureSchema()
 

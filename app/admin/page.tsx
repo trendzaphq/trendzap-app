@@ -535,7 +535,7 @@ export default function AdminPage() {
         { signal: AbortSignal.timeout(15_000) }
       )
       const data = await res.json()
-      const val = data?.data?.value
+      const val = data?.value
       setLiveMetrics((prev) => ({
         ...prev,
         [market.id]: val != null ? Number(val).toLocaleString() : "N/A",
@@ -681,6 +681,14 @@ export default function AdminPage() {
           <CardContent><p className={`text-3xl font-bold ${expiredUnresolved.length > 0 ? "text-yellow-400" : ""}`}>{expiredUnresolved.length}</p></CardContent>
         </Card>
       </section>
+
+      {/* Indexer not synced warning ──────────────────── */}
+      {markets.length > 0 && userStats?.total_bets === 0 && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-400">
+          ℹ️ <strong>Indexer has no bet data.</strong> Charts, recent bets, and profile history will be blank until synced.
+          {" "}Set <code className="bg-blue-900/40 px-1 rounded">INDEXER_START_BLOCK</code> to your contract deployment block on Railway, then click <strong>Sync Indexer</strong> (may need several clicks to catch up).
+        </div>
+      )}
 
       {/* Expired market warning ─────────────────────── */}
       {expiredUnresolved.length > 0 && (
