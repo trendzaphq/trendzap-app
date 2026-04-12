@@ -29,11 +29,26 @@ function ProfileHero() {
   const initials = displayName.slice(0, 2).toUpperCase()
   const [bannerC1, bannerC2] = getAddressGradient(address)
   const [balance, setBalance] = useState<string | null>(null)
+  const [winRate, setWinRate] = useState<string | null>(null)
 
   useEffect(() => {
     if (!address) return
     const client = createPublicClient({ chain: avalanche, transport: http(RPC_URL) })
     client.getBalance({ address: address as `0x${string}` }).then((b) => setBalance(formatEther(b))).catch(() => {})
+  }, [address])
+
+  useEffect(() => {
+    if (!address) return
+    fetch(`/api/bets?address=${address}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) return
+        const history: { result: string }[] = data.history ?? []
+        if (history.length === 0) { setWinRate("—"); return }
+        const wins = history.filter((b) => b.result === "won").length
+        setWinRate(`${Math.round((wins / history.length) * 100)}%`)
+      })
+      .catch(() => {})
   }, [address])
 
   const myMarkets = address
@@ -134,7 +149,7 @@ function ProfileHero() {
           </div>
           <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/30 border border-border/30">
             <Zap className="h-4 w-4 text-accent" />
-            <span className="text-lg font-bold font-mono">—</span>
+            <span className="text-lg font-bold font-mono">{winRate ?? "—"}</span>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Win Rate</span>
           </div>
         </div>

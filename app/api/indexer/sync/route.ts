@@ -37,9 +37,9 @@ async function runSync(recentOnly = false) {
 
   let fromBlock: bigint
   if (recentOnly) {
-    // Scan the last 5000 blocks (~2.5 hours on Avalanche C-Chain)
+    // Scan the last 50000 blocks (~27 hours on Avalanche C-Chain at ~2s/block)
     // Does NOT advance last_block so the full historical sync continues independently.
-    const recentStart = latestBlock > 5000n ? latestBlock - 5000n : 0n
+    const recentStart = latestBlock > 50000n ? latestBlock - 50000n : 0n
     const historicalNext = lastSynced ? BigInt(lastSynced) + 1n : DEFAULT_START_BLOCK
     fromBlock = historicalNext > recentStart ? historicalNext : recentStart
   } else {
@@ -107,7 +107,7 @@ async function runSync(recentOnly = false) {
     blocksProcessed += Number(toBlock - fromBlock + 1n)
     fromBlock = toBlock + 1n
 
-    if (blocksProcessed >= 40000) break
+    if (blocksProcessed >= 100000) break
   }
 
   // Only advance last_block for the full historical sync, not for recent-only scans
