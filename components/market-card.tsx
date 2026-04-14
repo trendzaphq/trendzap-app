@@ -20,6 +20,11 @@ interface MarketCardProps {
   endTime?: number
   creator?: string
   volume?: string
+  // embed preview
+  authorAvatar?: string
+  authorName?: string
+  postText?: string
+  mediaThumb?: string
 }
 
 const PLATFORM_GRADIENTS: Record<string, string> = {
@@ -41,6 +46,10 @@ export function MarketCard({
   endTime,
   creator,
   volume,
+  authorAvatar,
+  authorName,
+  postText,
+  mediaThumb,
 }: MarketCardProps) {
   const countdown = useCountdown(endTime || 0)
   const timeDisplay = endTime ? countdown : endsIn
@@ -89,17 +98,58 @@ export function MarketCard({
             </div>
           </div>
         ) : (
-          <div className="pt-4 px-4 flex items-center justify-between">
-            <Badge
-              className={`bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs`}
-            >
-              {platform.toUpperCase()}
-            </Badge>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Clock className={`h-3 w-3 ${ended ? "text-destructive" : ""}`} />
-              <span className={`text-xs font-mono ${ended ? "text-destructive" : ""}`}>{timeDisplay}</span>
+          <>
+            {/* Header row: platform badge + time */}
+            <div className="pt-4 px-4 flex items-center justify-between">
+              <Badge
+                className={`bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs`}
+              >
+                {platform.toUpperCase()}
+              </Badge>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Clock className={`h-3 w-3 ${ended ? "text-destructive" : ""}`} />
+                <span className={`text-xs font-mono ${ended ? "text-destructive" : ""}`}>{timeDisplay}</span>
+              </div>
             </div>
-          </div>
+
+            {/* Tweet preview — shown when embed data is available */}
+            {(authorName || postText) && (
+              <div className="mx-4 mt-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+                <div className="flex items-start gap-2.5">
+                  {authorAvatar ? (
+                    <img
+                      src={authorAvatar}
+                      alt={authorName || ""}
+                      className="h-8 w-8 rounded-full object-cover shrink-0 border border-border/30"
+                    />
+                  ) : (
+                    <div className={`h-8 w-8 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
+                      <span className="text-white font-bold text-xs">
+                        {(authorName?.[0] || platform[0]).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    {authorName && (
+                      <p className="text-xs font-semibold text-foreground truncate">@{authorName}</p>
+                    )}
+                    {postText && (
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mt-0.5">
+                        {postText}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {mediaThumb && (
+                  <img
+                    src={mediaThumb}
+                    alt=""
+                    className="mt-2 w-full h-28 object-cover rounded-lg"
+                  />
+                )}
+              </div>
+            )}
+          </>
         )}
 
         <div className="p-4 space-y-3">

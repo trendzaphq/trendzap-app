@@ -12,6 +12,13 @@ interface MarketMeta {
   thumbnail_url: string | null
 }
 
+interface EmbedPreview {
+  authorAvatar?: string
+  authorName?: string
+  postText?: string
+  mediaThumb?: string
+}
+
 interface MarketFeedProps {
   platform?: string
   sortBy?: string
@@ -20,7 +27,9 @@ interface MarketFeedProps {
 export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps) {
   const { markets: onChainMarkets, loading: contractsLoading } = useMarketList()
   const [metaMap, setMetaMap] = useState<Record<number, MarketMeta>>({})
+  const [embedMap, setEmbedMap] = useState<Record<number, EmbedPreview>>({})
   const seededRef = useRef<Set<number>>(new Set())
+  const embedFetchedRef = useRef<Set<number>>(new Set())
 
   useEffect(() => {
     fetch("/api/markets")
@@ -64,19 +73,53 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractsLoading, onChainMarkets.length, Object.keys(metaMap).length])
 
+  // Lazily fetch embed previews for markets that have no stored thumbnail
+  useEffect(() => {
+    if (onChainMarkets.length === 0) return
+    const toFetch = onChainMarkets.filter(
+      (m) => !metaMap[m.id]?.thumbnail_url && !embedFetchedRef.current.has(m.id) && m.postUrl
+    )
+    if (toFetch.length === 0) return
+    toFetch.forEach((m) => embedFetchedRef.current.add(m.id))
+    // Stagger requests by 120ms each to avoid bursting
+    toFetch.forEach((m, i) => {
+      setTimeout(() => {
+        fetch(`/api/embed?url=${encodeURIComponent(m.postUrl)}`)
+          .then((r) => r.json())
+          .then((d) => {
+            setEmbedMap((prev) => ({
+              ...prev,
+              [m.id]: {
+                authorAvatar: d.author_avatar ?? undefined,
+                authorName: d.author_name ?? undefined,
+                postText: d.post_text ?? undefined,
+                mediaThumb: Array.isArray(d.media) && d.media.length > 0 ? d.media[0] : undefined,
+              },
+            }))
+          })
+          .catch(() => {})
+      }, i * 120)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onChainMarkets.length, Object.keys(metaMap).length])
+
   const now = Math.floor(Date.now() / 1000)
 
   const liveMarkets = onChainMarkets
     .filter((m) => m.status === "ACTIVE" && m.endTime > now)
     .map((m) => {
       const meta = metaMap[m.id]
+      const embed = embedMap[m.id]
+      const authorHandle = embed?.authorName
       return {
         id: meta?.slug ?? String(m.id),
         platform: m.platform as "tiktok" | "youtube" | "x" | "instagram",
         thumbnail: meta?.thumbnail_url || "",
         title:
           meta?.title ||
-          `Will ${m.postUrl.slice(0, 50)}... hit ${Number(m.threshold).toLocaleString()} ${m.metricType}?`,
+          (authorHandle
+            ? `Will @${authorHandle}'s post hit ${Number(m.threshold).toLocaleString()} ${m.metricType}?`
+            : `Will ${m.postUrl.slice(0, 50)}... hit ${Number(m.threshold).toLocaleString()} ${m.metricType}?`),
         metric: m.metricType.charAt(0).toUpperCase() + m.metricType.slice(1),
         threshold: Number(m.threshold),
         currentValue: 0,
@@ -87,6 +130,11 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
         endTime: m.endTime,
         creator: m.creator.slice(0, 8) + "...",
         volume: m.totalVolume,
+        // embed preview data
+        authorAvatar: embed?.authorAvatar,
+        authorName: embed?.authorName,
+        postText: embed?.postText,
+        mediaThumb: embed?.mediaThumb,
       }
     })
 
