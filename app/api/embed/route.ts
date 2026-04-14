@@ -69,6 +69,8 @@ export async function GET(req: NextRequest) {
       // Fetch live stats via Twitter API v2 (requires TWITTER_BEARER_TOKEN)
       let stats: Record<string, number> | null = null
       let follower_count: number | null = null
+      let author_avatar: string | null = null
+      let media: string[] = []
       const tweetId = extractTweetId(url)
       const bearer = process.env.TWITTER_BEARER_TOKEN
 
@@ -91,20 +93,20 @@ export async function GET(req: NextRequest) {
           } catch { /* fall through */ }
         }
 
-        // Fallback: FxTwitter API — reliable, no auth, includes view counts
-        if (!stats) {
-          try {
-            const urlMatch = url.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/\d+/)
-            const username = urlMatch?.[1]
-            if (username) {
-              const fxRes = await fetch(
-                `https://api.fxtwitter.com/${username}/status/${tweetId}`,
-                { signal: AbortSignal.timeout(5000) }
-              )
-              if (fxRes.ok) {
-                const fx = await fxRes.json()
-                const t = fx.tweet
-                if (t) {
+        // FxTwitter API — always run for author avatar + media; also used as stats fallback
+        try {
+          const urlMatch = url.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/\d+/)
+          const username = urlMatch?.[1]
+          if (username) {
+            const fxRes = await fetch(
+              `https://api.fxtwitter.com/${username}/status/${tweetId}`,
+              { signal: AbortSignal.timeout(5000) }
+            )
+            if (fxRes.ok) {
+              const fx = await fxRes.json()
+              const t = fx.tweet
+              if (t) {
+                if (!stats) {
                   stats = {
                     like_count: t.likes ?? 0,
                     retweet_count: t.retweets ?? 0,
@@ -112,12 +114,14 @@ export async function GET(req: NextRequest) {
                     quote_count: t.quote_count ?? 0,
                     view_count: t.views ?? undefined,
                   }
-                  if (t.author?.followers != null) follower_count = t.author.followers
                 }
+                if (t.author?.followers != null && follower_count == null) follower_count = t.author.followers
+                author_avatar = t.author?.avatar_url ?? null
+                media = (t.media?.photos as Array<{ url: string }> | undefined)?.map((p) => p.url) ?? []
               }
             }
-          } catch { /* fall through to syndication */ }
-        }
+          }
+        } catch { /* fall through to syndication */ }
 
         // Final fallback: Twitter syndication API (no auth — used by react-tweet)
         if (!stats) {
@@ -150,7 +154,7 @@ export async function GET(req: NextRequest) {
       }
 
       return NextResponse.json(
-        { platform: "x", embed_html: oEmbed.html, author_name: oEmbed.author_name, post_text, stats, follower_count },
+        { platform: "x", embed_html: oEmbed.html, author_name: oEmbed.author_name, post_text, stats, follower_count, author_avatar, media },
         { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120" } }
       )
     }
