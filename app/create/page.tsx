@@ -167,6 +167,7 @@ export default function CreateMarketPage() {
 
   useEffect(() => {
     const isValidPostUrl = (u: string) => {
+      // Only X/Twitter and YouTube — strict pattern match
       return (
         /^https?:\/\/(www\.)?(twitter\.com|x\.com|mobile\.twitter\.com)\/\w+\/status\/\d+/.test(u) ||
         /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be)/.test(u)
