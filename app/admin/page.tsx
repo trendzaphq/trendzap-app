@@ -545,6 +545,7 @@ function StatusBadge({ status }: { status: string }) {
 // ── Main admin page ──────────────────────────────────────────
 const ADMIN_ADDRESSES = [
   "0x05394029ea22767d2283bcd0be03b13353781212",
+  "0x345001B9686A1dE8a81202a9940cA885A781B69C",
   // add more admin wallets here
 ]
 

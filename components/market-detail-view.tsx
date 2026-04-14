@@ -32,6 +32,7 @@ import { OddsChart } from "@/components/odds-chart"
 import { ShareToX } from "@/components/share-to-x"
 import { BetConfirmModal } from "@/components/bet-confirm-modal"
 import { PostEmbed } from "@/components/post-embed"
+import { PlatformIcon, PLATFORM_LABELS } from "@/components/platform-icon"
 
 interface MarketDetailViewProps {
   marketId: string
@@ -244,9 +245,10 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 x: "from-[#1DA1F2] to-[#14171A]",
                 instagram: "from-[#E1306C] to-[#FCAF45]",
               } as Record<string, string>)[market.platform] ?? "from-primary to-secondary"
-            } text-white border-0 font-semibold`}
+            } text-white border-0 font-semibold flex items-center gap-1`}
           >
-            {market.platform.toUpperCase()}
+            <PlatformIcon platform={market.platform} className="h-3 w-3" />
+            {PLATFORM_LABELS[market.platform] || market.platform.toUpperCase()}
           </Badge>
           <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" asChild>
             <a href={market.sourceUrl} target="_blank" rel="noopener noreferrer">

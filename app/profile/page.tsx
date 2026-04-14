@@ -3,6 +3,7 @@
 import { Navigation } from "@/components/navigation"
 import { UserBets } from "@/components/user-bets"
 import { UserMarkets } from "@/components/user-markets"
+import { PortfolioView } from "@/components/portfolio-view"
 import { GradientAvatar, getAddressGradient } from "@/components/user-profile"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePrivy, useWallets } from "@privy-io/react-auth"
@@ -168,9 +169,10 @@ export default function ProfilePage() {
           <ProfileHero />
 
           <Tabs defaultValue="bets" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="bets">My Bets</TabsTrigger>
               <TabsTrigger value="markets">My Markets</TabsTrigger>
+              <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
             </TabsList>
 
             <TabsContent value="bets" className="mt-4">
@@ -179,6 +181,10 @@ export default function ProfilePage() {
 
             <TabsContent value="markets" className="mt-4">
               <UserMarkets />
+            </TabsContent>
+
+            <TabsContent value="portfolio" className="mt-4">
+              <PortfolioView />
             </TabsContent>
           </Tabs>
         </div>
