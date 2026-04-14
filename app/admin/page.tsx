@@ -498,7 +498,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/indexer/sync")
       const data = await res.json()
-      setSyncResult(`Synced +${data.blocksProcessed ?? 0} blocks, ${data.betsIndexed ?? 0} bets, ${data.resolutionsIndexed ?? 0} resolutions`)
+      setSyncResult(`Synced +${data.blocksProcessed ?? 0} blocks from #${data.startBlock ?? "?"}, ${data.betsIndexed ?? 0} bets, ${data.resolutionsIndexed ?? 0} resolutions → last #${data.newLastBlock ?? "?"}`)
     } catch {
       setSyncResult("Sync failed — check console")
     } finally {

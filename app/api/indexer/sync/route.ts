@@ -30,7 +30,8 @@ const EVENTS = {
 async function runSync(recentOnly = false) {
   await ensureSchema()
 
-  const client = createPublicClient({ chain: avalanche, transport: http() })
+  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || undefined
+  const client = createPublicClient({ chain: avalanche, transport: http(rpcUrl) })
   const latestBlock = await client.getBlockNumber()
 
   const lastSynced = await getIndexerState("last_block")
@@ -45,7 +46,14 @@ async function runSync(recentOnly = false) {
   } else {
     fromBlock = lastSynced ? BigInt(lastSynced) + 1n : DEFAULT_START_BLOCK
   }
+  // Self-heal: if last_block from a previous run is before the configured start,
+  // jump forward to DEFAULT_START_BLOCK to avoid scanning millions of empty blocks.
+  if (fromBlock < DEFAULT_START_BLOCK) {
+    fromBlock = DEFAULT_START_BLOCK
+    if (!recentOnly) await setIndexerState("last_block", String(DEFAULT_START_BLOCK - 1n))
+  }
 
+  const startBlock = fromBlock
   let blocksProcessed = 0
   let betsIndexed = 0
   let resolutionsIndexed = 0
@@ -118,6 +126,7 @@ async function runSync(recentOnly = false) {
   return {
     ok: true,
     recentOnly,
+    startBlock: String(startBlock),
     blocksProcessed,
     latestBlock: String(latestBlock),
     newLastBlock: recentOnly ? (lastSynced ?? String(DEFAULT_START_BLOCK)) : String(fromBlock - 1n),
