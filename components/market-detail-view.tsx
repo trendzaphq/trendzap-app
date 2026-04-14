@@ -55,6 +55,19 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
   const [liveMetric, setLiveMetric] = useState<number | null>(null)
   const [activityBets, setActivityBets] = useState<Array<{ address: string; short: string; avatar: string; position: string; amount: string; time: string | null; tx_hash: string }>>([])
   const [activityLoading, setActivityLoading] = useState(true)
+  const [authorInfo, setAuthorInfo] = useState<{ avatar?: string; name?: string } | null>(null)
+
+  useEffect(() => {
+    if (!onChainMarket?.postUrl) return
+    fetch(`/api/embed?url=${encodeURIComponent(onChainMarket.postUrl)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.author_name || d.author_avatar) {
+          setAuthorInfo({ avatar: d.author_avatar ?? undefined, name: d.author_name ?? undefined })
+        }
+      })
+      .catch(() => {})
+  }, [onChainMarket?.postUrl])
 
   useEffect(() => {
     fetch(`/api/markets/${numericId}`)
@@ -235,20 +248,38 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
     <div className="space-y-6">
       {/* Content Preview — actual post embed */}
       <Card className="overflow-hidden">
-        {/* Header row: platform badge + external link */}
+        {/* Header row: author info + external link */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-          <Badge
-            className={`bg-gradient-to-r ${
-              ({
-                tiktok: "from-[#FF0050] to-[#00F2EA]",
-                youtube: "from-[#FF0000] to-[#FF8800]",
-                x: "from-[#1DA1F2] to-[#14171A]",
-                instagram: "from-[#E1306C] to-[#FCAF45]",
-              } as Record<string, string>)[market.platform] ?? "from-primary to-secondary"
-            } text-white border-0 font-semibold px-2 py-1`}
-          >
-            <PlatformIcon platform={market.platform} className="h-3.5 w-3.5" />
-          </Badge>
+          <div className="flex items-center gap-2.5">
+            {authorInfo?.avatar ? (
+              <img
+                src={authorInfo.avatar}
+                alt={authorInfo.name || ""}
+                className="h-8 w-8 rounded-full object-cover border border-border/30 shrink-0"
+              />
+            ) : (
+              <div
+                className={`h-8 w-8 rounded-full bg-gradient-to-br ${
+                  ({
+                    tiktok: "from-[#FF0050] to-[#00F2EA]",
+                    youtube: "from-[#FF0000] to-[#FF8800]",
+                    x: "from-[#1DA1F2] to-[#14171A]",
+                    instagram: "from-[#E1306C] to-[#FCAF45]",
+                  } as Record<string, string>)[market.platform] ?? "from-primary to-secondary"
+                } flex items-center justify-center shrink-0`}
+              >
+                <PlatformIcon platform={market.platform} className="h-4 w-4 text-white" />
+              </div>
+            )}
+            <div>
+              {authorInfo?.name && (
+                <p className="text-sm font-semibold leading-tight">@{authorInfo.name}</p>
+              )}
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                {({ x: "X / Twitter", youtube: "YouTube", tiktok: "TikTok", instagram: "Instagram" } as Record<string, string>)[market.platform] ?? market.platform}
+              </p>
+            </div>
+          </div>
           <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" asChild>
             <a href={market.sourceUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-3.5 w-3.5" />
