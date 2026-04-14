@@ -619,7 +619,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <span className="text-xs text-muted-foreground">Live</span>
           </div>
         </div>
-        <OddsChart marketId={numericId} />
+        <OddsChart marketId={numericId} seedPriceOver={onChainMarket?.priceOver} seedPriceUnder={onChainMarket?.priceUnder} />
       </Card>
 
       {/* Activity Tabs */}
@@ -670,7 +670,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             )}
           </TabsContent>
           <TabsContent value="chart" className="mt-6">
-            <OddsChart marketId={numericId} />
+            <OddsChart marketId={numericId} seedPriceOver={onChainMarket?.priceOver} seedPriceUnder={onChainMarket?.priceUnder} />
           </TabsContent>
           <TabsContent value="info" className="mt-6">
             <div className="space-y-4">

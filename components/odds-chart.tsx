@@ -7,6 +7,9 @@ import { Loader2 } from "lucide-react"
 interface OddsChartProps {
   marketId: number
   threshold?: number
+  /** Current on-chain prices (0-100) — used as seed when DB has < 2 points */
+  seedPriceOver?: number
+  seedPriceUnder?: number
 }
 
 interface PricePoint {
@@ -28,7 +31,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   )
 }
 
-export function OddsChart({ marketId, threshold }: OddsChartProps) {
+export function OddsChart({ marketId, threshold, seedPriceOver, seedPriceUnder }: OddsChartProps) {
   const [data, setData] = useState<PricePoint[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -56,7 +59,19 @@ export function OddsChart({ marketId, threshold }: OddsChartProps) {
     )
   }
 
-  if (data.length < 2) {
+  // If DB has < 2 points but we have current on-chain prices, synthesize seed points
+  // so the chart renders immediately rather than showing the "after first trade" message.
+  const chartData: PricePoint[] =
+    data.length >= 2
+      ? data
+      : seedPriceOver != null && seedPriceUnder != null
+      ? [
+          { id: 0, block_number: "seed-0", price_over: seedPriceOver, price_under: seedPriceUnder },
+          { id: 1, block_number: "seed-1", price_over: seedPriceOver, price_under: seedPriceUnder },
+        ]
+      : []
+
+  if (chartData.length < 2) {
     return (
       <div className="h-48 flex items-center justify-center text-muted-foreground">
         <p className="text-sm">Odds chart available after first trade</p>
@@ -67,7 +82,7 @@ export function OddsChart({ marketId, threshold }: OddsChartProps) {
   return (
     <div className="h-48 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="overGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />

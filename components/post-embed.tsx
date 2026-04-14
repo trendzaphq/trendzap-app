@@ -19,6 +19,8 @@ export interface EmbedData {
   platform: string
   embed_html: string
   author_name?: string
+  author_avatar?: string | null
+  media?: string[]
   title?: string
   thumbnail_url?: string
   post_text?: string | null
@@ -160,6 +162,21 @@ export function PostEmbed({ url, platform: _platformHint, className = "", compac
 
   return (
     <div className={`space-y-3 ${className}`}>
+      {/* Author row — X/Twitter only */}
+      {platform === "x" && data.author_avatar && !compact && (
+        <div className="flex items-center gap-2.5 px-1">
+          <img
+            src={data.author_avatar}
+            alt={data.author_name || "Author"}
+            className="h-9 w-9 rounded-full object-cover border border-border/40 shrink-0"
+          />
+          <div>
+            <p className="text-sm font-semibold leading-snug">{data.author_name}</p>
+            <p className="text-[10px] text-muted-foreground">X / Twitter</p>
+          </div>
+        </div>
+      )}
+
       {/* Stat pills — horizontal scrollable row (mobile-friendly) */}
       {hasStats && !compact && (
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
@@ -201,6 +218,20 @@ export function PostEmbed({ url, platform: _platformHint, className = "", compac
         `}
         dangerouslySetInnerHTML={{ __html: data.embed_html }}
       />
+
+      {/* Media image grid — X/Twitter photos */}
+      {platform === "x" && data.media && data.media.length > 0 && !compact && (
+        <div className={`grid gap-1 rounded-xl overflow-hidden ${data.media.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+          {data.media.slice(0, 4).map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              alt={`Tweet image ${i + 1}`}
+              className="w-full aspect-video object-cover"
+            />
+          ))}
+        </div>
+      )}
 
       {/* Footer: timestamp + refresh */}
       {hasStats && !compact && lastUpdated && (

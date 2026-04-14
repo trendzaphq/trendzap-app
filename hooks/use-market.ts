@@ -381,9 +381,37 @@ export function useBuyShares() {
         })
 
         setTxHash(tx.hash)
-        await tx.wait()
+        const receiptBuy = await tx.wait()
 
-        // Fire recent-only indexer sync so RecentBets + OddsChart reflect new bet immediately
+        // Immediately write bet + new price point to DB so Activity/Chart populate
+        // without waiting for the next indexer batch cycle.
+        try {
+          const client = getPublicClient()
+          const prices = await client.readContract({
+            address: CONTRACTS.market,
+            abi: MARKET_ABI,
+            functionName: "getPrices",
+            args: [BigInt(marketId)],
+          }) as [bigint, bigint]
+          const pOver = Number((prices[0] * 100n) / PRECISION)
+          const pUnder = Number((prices[1] * 100n) / PRECISION)
+          fetch("/api/record-bet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              market_id: marketId,
+              is_over: isOver,
+              cost_wei: value.toString(),
+              tx_hash: tx.hash,
+              trader_address: await signer.getAddress(),
+              block_number: receiptBuy?.blockNumber ?? 0,
+              price_over: pOver,
+              price_under: pUnder,
+            }),
+          }).catch(() => {})
+        } catch { /* non-blocking */ }
+
+        // Fire recent-only indexer sync so exact shares/costs get filled in later
         fetch("/api/indexer/sync?recent=true").catch(() => {})
 
         toast.success("Bet placed successfully! ⚡", {
