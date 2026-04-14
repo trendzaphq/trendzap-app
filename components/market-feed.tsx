@@ -152,6 +152,11 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
     displayMarkets = [...displayMarkets].sort(
       (a, b) => parseFloat(b.volume || "0") - parseFloat(a.volume || "0")
     )
+  } else if (sortBy === "hot") {
+    // Most contested = closest to 50/50 odds (smallest deviation from 50)
+    displayMarkets = [...displayMarkets].sort(
+      (a, b) => Math.abs(a.overPool - 50) - Math.abs(b.overPool - 50)
+    )
   }
 
   if (contractsLoading) {

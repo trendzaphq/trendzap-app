@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { GradientAvatar } from "@/components/user-profile"
+import { SearchModal } from "@/components/search-modal"
 
 export function Navigation() {
   const router = useRouter()
@@ -64,6 +65,7 @@ export function Navigation() {
     thumbnail_url: string | null
     creator_address: string | null
   }[]>([])
+  const [searchModalOpen, setSearchModalOpen] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -88,6 +90,7 @@ export function Navigation() {
   }, [])
 
   return (
+    <>
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-[oklch(0.11_0.02_264)]/95 backdrop-blur-xl supports-[backdrop-filter]:bg-[oklch(0.11_0.02_264)]/80">
         <div className="container mx-auto px-4 flex h-16 items-center gap-3">
 
@@ -129,12 +132,22 @@ export function Navigation() {
             </div>
           </div>
 
-          {/* Spacer on mobile to push right items to right edge */}
-          <div className="flex-1 md:hidden" />
+          {/* Spacer — fills gap on mobile + tablet; search bar fills it on desktop */}
+          <div className="flex-1 lg:hidden" />
 
           {/* Right actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Leaderboard link — desktop only */}
+            {/* Search icon — tablet only (md → lg); desktop uses the inline bar */}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="hidden md:flex lg:hidden text-muted-foreground hover:text-primary"
+              onClick={() => setSearchModalOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+
+            {/* Leaderboard link — md and up */}
             <Button size="sm" variant="ghost" className="hidden md:flex text-muted-foreground hover:text-primary gap-2" asChild>
               <Link href="/leaderboard">
                 <Trophy className="h-4 w-4" />
@@ -227,5 +240,8 @@ export function Navigation() {
           </div>
         </div>
       </header>
+
+      <SearchModal open={searchModalOpen} onClose={() => setSearchModalOpen(false)} />
+    </>
   )
 }

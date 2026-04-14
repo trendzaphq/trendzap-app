@@ -6,11 +6,15 @@ import { Navigation } from "@/components/navigation"
 import { MarketFeed } from "@/components/market-feed"
 import { MarketFiltersSidebar } from "@/components/market-filters-sidebar"
 import { TrendingSidebar } from "@/components/trending-sidebar"
-import { Flame, Clock, TrendingUp, Zap, LayoutGrid, Tv2, Youtube, Twitter, Instagram } from "lucide-react"
+import { Flame, Clock, TrendingUp, Zap, LayoutGrid } from "lucide-react"
 import { getEnabledPlatforms } from "@/lib/platforms"
+import { PlatformIcon } from "@/components/platform-icon"
 
-const PLATFORM_ICONS: Record<string, React.ElementType> = {
-  x: Twitter, tiktok: Tv2, youtube: Youtube, instagram: Instagram,
+const PLATFORM_GRADIENTS: Record<string, string> = {
+  x: "from-[#1DA1F2] to-[#14171A]",
+  youtube: "from-[#FF0000] to-[#FF8800]",
+  tiktok: "from-[#FF0050] to-[#00F2EA]",
+  instagram: "from-[#E1306C] to-[#FCAF45]",
 }
 
 const SORTS = [
@@ -34,15 +38,16 @@ function MobileFilterStrip({
   const enabledPlatforms = getEnabledPlatforms()
 
   return (
-    <div className="lg:hidden border-b border-border/40 bg-background/80 backdrop-blur-sm sticky top-16 z-30">
-      <div className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto no-scrollbar">
-        {/* "All" pill */}
+    <div className="lg:hidden border-b border-border/40 bg-background/95 backdrop-blur-sm sticky top-16 z-30">
+      <div className="flex items-center gap-1.5 px-3 py-2.5 overflow-x-auto no-scrollbar">
+
+        {/* Platform filters */}
         <button
           onClick={() => setPlatform("")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
             activePlatform === ""
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted/60 text-muted-foreground hover:text-foreground"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
           }`}
         >
           <LayoutGrid className="h-3 w-3" />
@@ -50,33 +55,35 @@ function MobileFilterStrip({
         </button>
 
         {enabledPlatforms.map((p) => {
-          const Icon = PLATFORM_ICONS[p.id] || Twitter
+          const isActive = activePlatform === p.id
+          const gradient = PLATFORM_GRADIENTS[p.id]
           return (
             <button
               key={p.id}
               onClick={() => setPlatform(p.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
-                activePlatform === p.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/60 text-muted-foreground hover:text-foreground"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
+                isActive
+                  ? `bg-gradient-to-r ${gradient} text-white shadow-sm`
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
-              <Icon className="h-3 w-3" />
+              <PlatformIcon platform={p.id} className="h-3 w-3" />
               {p.label === "X (Twitter)" ? "X" : p.label}
             </button>
           )
         })}
 
-        <div className="h-4 w-px bg-border shrink-0 mx-1" />
+        <div className="h-4 w-px bg-border/60 shrink-0 mx-1" />
 
+        {/* Sort filters */}
         {SORTS.map(({ value, label, icon: Icon }) => (
           <button
             key={value}
             onClick={() => onSortChange(value)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
               sortBy === value
-                ? "bg-primary/20 text-primary border border-primary/30"
-                : "bg-muted/40 text-muted-foreground hover:text-foreground"
+                ? "bg-primary/15 text-primary border border-primary/25 shadow-sm"
+                : "bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             }`}
           >
             <Icon className="h-3 w-3" />

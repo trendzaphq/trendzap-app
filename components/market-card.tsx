@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Zap, TrendingUp, TrendingDown, Users } from "lucide-react"
 import { useCountdown } from "@/hooks/use-countdown"
+import { PlatformIcon, PLATFORM_LABELS } from "@/components/platform-icon"
 
 interface MarketCardProps {
   id: string
@@ -84,9 +85,10 @@ export function MarketCard({
 
             {/* Platform badge */}
             <Badge
-              className={`absolute top-3 left-3 bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs`}
+              className={`absolute top-3 left-3 bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs flex items-center gap-1`}
             >
-              {platform.toUpperCase()}
+              <PlatformIcon platform={platform} className="h-3 w-3" />
+              {PLATFORM_LABELS[platform] || platform.toUpperCase()}
             </Badge>
 
             {/* Time */}
@@ -98,13 +100,14 @@ export function MarketCard({
             </div>
           </div>
         ) : (
-          <>
+          <div className="relative h-44 overflow-hidden flex flex-col">
             {/* Header row: platform badge + time */}
-            <div className="pt-4 px-4 flex items-center justify-between">
+            <div className="pt-4 px-4 flex items-center justify-between shrink-0">
               <Badge
-                className={`bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs`}
+                className={`bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs flex items-center gap-1`}
               >
-                {platform.toUpperCase()}
+                <PlatformIcon platform={platform} className="h-3 w-3" />
+                {PLATFORM_LABELS[platform] || platform.toUpperCase()}
               </Badge>
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Clock className={`h-3 w-3 ${ended ? "text-destructive" : ""}`} />
@@ -114,7 +117,7 @@ export function MarketCard({
 
             {/* Tweet preview — shown when embed data is available */}
             {(authorName || postText) && (
-              <div className="mx-4 mt-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+              <div className="mx-4 mt-3 p-3 rounded-xl bg-muted/30 border border-border/30 flex-1 min-h-0 overflow-hidden">
                 <div className="flex items-start gap-2.5">
                   {authorAvatar ? (
                     <img
@@ -144,12 +147,15 @@ export function MarketCard({
                   <img
                     src={mediaThumb}
                     alt=""
-                    className="mt-2 w-full h-28 object-cover rounded-lg"
+                    className="mt-2 w-full h-16 object-cover rounded-lg"
                   />
                 )}
               </div>
             )}
-          </>
+
+            {/* Gradient overlay at bottom for clean fade */}
+            <div className="absolute bottom-0 inset-x-0 h-6 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+          </div>
         )}
 
         <div className="p-4 space-y-3">
