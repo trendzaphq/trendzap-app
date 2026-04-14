@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { Loader2, Sparkles } from "lucide-react"
 import { useMarketList, type MarketData, getSettlementInfo, parseSettlementAmount } from "@/hooks/use-market"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
 import { toast } from "sonner"
@@ -215,10 +216,75 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const [title, setTitle] = useState("")
   const [loading, setLoading] = useState(false)
   const [txHash, setTxHash] = useState<string | null>(null)
+  const [embedLoading, setEmbedLoading] = useState(false)
+  const [embedData, setEmbedData] = useState<{
+    author_name?: string
+    post_text?: string | null
+    stats?: Record<string, number> | null
+    follower_count?: number | null
+  } | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState<{
+    virality_assessment?: string | null
+    content_strengths?: string[]
+    suggested_title?: string
+  } | null>(null)
 
   const reset = () => {
     setUrl(""); setMetric("views"); setThreshold(""); setDeadline("24h")
     setSeedAmount("0.001"); setPosition("over"); setTitle(""); setTxHash(null)
+    setEmbedData(null); setAiResult(null)
+  }
+
+  // Auto-fetch embed info 800ms after a valid URL is typed
+  useEffect(() => {
+    if (!url.startsWith("http")) { setEmbedData(null); return }
+    setEmbedLoading(true)
+    const timer = setTimeout(() => {
+      fetch(`/api/embed?url=${encodeURIComponent(url)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          setEmbedData(d)
+          // Auto-populate title if still blank
+          setTitle((prev) => {
+            if (prev) return prev
+            const plat = detectPlatform(url).toUpperCase()
+            return d.author_name
+              ? `Will this ${plat} post hit its target? (@${d.author_name})`
+              : `Will this ${plat} post go viral?`
+          })
+        })
+        .catch(() => {})
+        .finally(() => setEmbedLoading(false))
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [url])
+
+  const analyzeWithAI = async () => {
+    if (!embedData?.post_text) return
+    setAiLoading(true)
+    setAiResult(null)
+    try {
+      const platform = detectPlatform(url)
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform,
+          post_text: embedData.post_text,
+          current_likes: embedData.stats?.like_count ?? 0,
+          current_shares: (embedData.stats?.retweet_count ?? 0) + (embedData.stats?.quote_count ?? 0),
+          follower_count: embedData.follower_count ?? 0,
+        }),
+      })
+      const d = await res.json()
+      if (d.ok) {
+        setAiResult(d)
+        if (d.suggested_title) setTitle((prev) => prev || d.suggested_title)
+      }
+    } catch { /* non-blocking */ } finally {
+      setAiLoading(false)
+    }
   }
 
   const create = async () => {
@@ -345,6 +411,52 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 <Input placeholder="https://x.com/user/status/..." value={url}
                   onChange={(e) => setUrl(e.target.value)} />
               </div>
+
+              {/* Embed info + AI analyze */}
+              {embedLoading && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Fetching post info…
+                </p>
+              )}
+              {!embedLoading && embedData?.post_text && (
+                <div className="bg-muted/40 border border-border/40 rounded-lg p-2.5 space-y-2">
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {embedData.author_name && (
+                      <span className="font-semibold text-foreground">@{embedData.author_name}: </span>
+                    )}
+                    {embedData.post_text}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5 w-full"
+                    onClick={analyzeWithAI}
+                    disabled={aiLoading}
+                  >
+                    {aiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    {aiLoading ? "Analyzing with AI…" : "Analyze with AI"}
+                  </Button>
+                </div>
+              )}
+              {aiResult && (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-2 text-xs">
+                  {aiResult.virality_assessment && (
+                    <p className="text-muted-foreground leading-relaxed">{aiResult.virality_assessment}</p>
+                  )}
+                  {aiResult.content_strengths && aiResult.content_strengths.length > 0 && (
+                    <ul className="space-y-1">
+                      {aiResult.content_strengths.slice(0, 3).map((s, i) => (
+                        <li key={i} className="flex gap-1.5 items-start">
+                          <span className="text-primary mt-0.5 shrink-0">✓</span>
+                          <span className="text-muted-foreground">{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-1">
                 <Label>Market Title <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
                 <Input placeholder="Will this post go viral?" value={title}
