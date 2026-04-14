@@ -11,7 +11,7 @@ import {
   insertPricePoint,
 } from "@/lib/db"
 
-const DEFAULT_START_BLOCK = BigInt(process.env.INDEXER_START_BLOCK || "45000000")
+const DEFAULT_START_BLOCK = BigInt(process.env.INDEXER_START_BLOCK || "81968790")
 const BATCH_SIZE = BigInt(2000)
 const CONTRACT = (process.env.NEXT_PUBLIC_MARKET_CONTRACT || "0x0000000000000000000000000000000000000000") as `0x${string}`
 

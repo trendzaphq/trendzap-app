@@ -692,9 +692,11 @@ export default function AdminPage() {
 
       {/* Indexer not synced warning ──────────────────── */}
       {markets.length > 0 && userStats?.total_bets === 0 && (
-        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-400">
-          ℹ️ <strong>Indexer has no bet data.</strong> Charts, recent bets, and profile history will be blank until synced.
-          {" "}Set <code className="bg-blue-900/40 px-1 rounded">INDEXER_START_BLOCK</code> to your contract deployment block on Railway, then click <strong>Sync Indexer</strong> (may need several clicks to catch up).
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
+          ⚠️ <strong>Indexer has no bet data — all charts, bets, and leaderboard will be blank.</strong>
+          {" "}Click <strong>Reset Indexer</strong> (red) to clear any stale scan position, then click <strong>Sync Indexer</strong>
+          {" "}until you see <code className="bg-yellow-900/40 px-1 rounded">from #81968790</code> in the result.
+          {" "}Repeat Sync ~15× to backfill all history.
         </div>
       )}
 
