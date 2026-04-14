@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Zap, TrendingUp, TrendingDown, Users } from "lucide-react"
 import { useCountdown } from "@/hooks/use-countdown"
-import { PlatformIcon, PLATFORM_LABELS } from "@/components/platform-icon"
+import { PlatformIcon } from "@/components/platform-icon"
 
 interface MarketCardProps {
   id: string
@@ -85,10 +85,9 @@ export function MarketCard({
 
             {/* Platform badge */}
             <Badge
-              className={`absolute top-3 left-3 bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs flex items-center gap-1`}
+              className={`absolute top-3 left-3 bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs px-2 py-1`}
             >
-              <PlatformIcon platform={platform} className="h-3 w-3" />
-              {PLATFORM_LABELS[platform] || platform.toUpperCase()}
+              <PlatformIcon platform={platform} className="h-3.5 w-3.5" />
             </Badge>
 
             {/* Time */}
@@ -104,10 +103,9 @@ export function MarketCard({
             {/* Header row: platform badge + time */}
             <div className="pt-4 px-4 flex items-center justify-between shrink-0">
               <Badge
-                className={`bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs flex items-center gap-1`}
+                className={`bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs px-2 py-1`}
               >
-                <PlatformIcon platform={platform} className="h-3 w-3" />
-                {PLATFORM_LABELS[platform] || platform.toUpperCase()}
+                <PlatformIcon platform={platform} className="h-3.5 w-3.5" />
               </Badge>
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Clock className={`h-3 w-3 ${ended ? "text-destructive" : ""}`} />
