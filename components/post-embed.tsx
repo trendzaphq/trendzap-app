@@ -40,10 +40,11 @@ interface PostEmbedProps {
   platform?: string
   className?: string
   compact?: boolean
+  hideAuthor?: boolean
   onData?: (data: EmbedData) => void
 }
 
-export function PostEmbed({ url, platform: _platformHint, className = "", compact = false, onData }: PostEmbedProps) {
+export function PostEmbed({ url, platform: _platformHint, className = "", compact = false, hideAuthor = false, onData }: PostEmbedProps) {
   const [data, setData] = useState<EmbedData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -163,7 +164,7 @@ export function PostEmbed({ url, platform: _platformHint, className = "", compac
   return (
     <div className={`space-y-3 ${className}`}>
       {/* Author row — X/Twitter only */}
-      {platform === "x" && data.author_avatar && !compact && (
+      {platform === "x" && data.author_avatar && !compact && !hideAuthor && (
         <div className="flex items-center gap-2.5 px-1">
           <img
             src={data.author_avatar}

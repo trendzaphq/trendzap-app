@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { usePrivy, useWallets } from "@privy-io/react-auth"
+import { isAdminAddress } from "@/lib/admin"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -543,12 +544,6 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ── Main admin page ──────────────────────────────────────────
-const ADMIN_ADDRESSES = [
-  "0x05394029ea22767d2283bcd0be03b13353781212",
-  "0x345001B9686A1dE8a81202a9940cA885A781B69C",
-  // add more admin wallets here
-]
-
 export default function AdminPage() {
   const { authenticated } = usePrivy()
   const { wallets } = useWallets()
@@ -667,7 +662,7 @@ export default function AdminPage() {
   }
 
   const connectedAddress = wallets[0]?.address
-  const isAdmin = !!connectedAddress && ADMIN_ADDRESSES.includes(connectedAddress.toLowerCase())
+  const isAdmin = isAdminAddress(connectedAddress)
 
   // ── Access guard ──────────────────────────────────
   if (!authenticated || !isAdmin) {
