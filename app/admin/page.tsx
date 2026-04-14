@@ -431,7 +431,10 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ── Main admin page ──────────────────────────────────────────
-const ADMIN_ADDRESS = "0x05394029ea22767d2283bcd0be03b13353781212"
+const ADMIN_ADDRESSES = [
+  "0x05394029ea22767d2283bcd0be03b13353781212",
+  // add more admin wallets here
+]
 
 export default function AdminPage() {
   const { authenticated } = usePrivy()
@@ -551,7 +554,7 @@ export default function AdminPage() {
   }
 
   const connectedAddress = wallets[0]?.address
-  const isAdmin = connectedAddress?.toLowerCase() === ADMIN_ADDRESS
+  const isAdmin = !!connectedAddress && ADMIN_ADDRESSES.includes(connectedAddress.toLowerCase())
 
   // ── Access guard ──────────────────────────────────
   if (!authenticated || !isAdmin) {
