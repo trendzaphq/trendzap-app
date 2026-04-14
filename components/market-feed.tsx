@@ -17,6 +17,7 @@ interface EmbedPreview {
   authorName?: string
   postText?: string
   mediaThumb?: string
+  thumbnailFromEmbed?: string  // YouTube/TikTok oEmbed thumbnail_url
 }
 
 interface MarketFeedProps {
@@ -92,8 +93,12 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
               [m.id]: {
                 authorAvatar: d.author_avatar ?? undefined,
                 authorName: d.author_name ?? undefined,
-                postText: d.post_text ?? undefined,
+                // YouTube/TikTok use `title` as the post text; X uses `post_text`
+                postText: d.post_text ?? d.title ?? undefined,
+                // X: first photo from tweets; YouTube/TikTok: use oEmbed thumbnail_url instead
                 mediaThumb: Array.isArray(d.media) && d.media.length > 0 ? d.media[0] : undefined,
+                // YouTube + TikTok oEmbed provide a proper video thumbnail
+                thumbnailFromEmbed: d.thumbnail_url ?? undefined,
               },
             }))
           })
@@ -114,7 +119,7 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
       return {
         id: meta?.slug ?? String(m.id),
         platform: m.platform as "tiktok" | "youtube" | "x" | "instagram",
-        thumbnail: meta?.thumbnail_url || "",
+        thumbnail: meta?.thumbnail_url || embed?.thumbnailFromEmbed || "",
         title:
           meta?.title ||
           (authorHandle
