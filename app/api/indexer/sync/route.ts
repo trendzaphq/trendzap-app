@@ -30,7 +30,8 @@ const EVENTS = {
 async function runSync(recentOnly = false) {
   await ensureSchema()
 
-  const client = createPublicClient({ chain: avalanche, transport: http() })
+  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || undefined
+  const client = createPublicClient({ chain: avalanche, transport: http(rpcUrl) })
   const latestBlock = await client.getBlockNumber()
 
   const lastSynced = await getIndexerState("last_block")
@@ -45,7 +46,14 @@ async function runSync(recentOnly = false) {
   } else {
     fromBlock = lastSynced ? BigInt(lastSynced) + 1n : DEFAULT_START_BLOCK
   }
+  // Self-heal: if last_block from a previous run is before the configured start,
+  // jump forward to DEFAULT_START_BLOCK to avoid scanning millions of empty blocks.
+  if (fromBlock < DEFAULT_START_BLOCK) {
+    fromBlock = DEFAULT_START_BLOCK
+    if (!recentOnly) await setIndexerState("last_block", String(DEFAULT_START_BLOCK - 1n))
+  }
 
+  const startBlock = fromBlock
   let blocksProcessed = 0
   let betsIndexed = 0
   let resolutionsIndexed = 0
@@ -118,6 +126,7 @@ async function runSync(recentOnly = false) {
   return {
     ok: true,
     recentOnly,
+    startBlock: String(startBlock),
     blocksProcessed,
     latestBlock: String(latestBlock),
     newLastBlock: recentOnly ? (lastSynced ?? String(DEFAULT_START_BLOCK)) : String(fromBlock - 1n),
@@ -145,11 +154,18 @@ export async function POST(request: Request) {
 }
 
 // GET — unprotected, allows manual browser triggers and health checks
-// ?recent=true  → fast scan of last 1000 blocks only (for UI triggers after bet)
+// ?recent=true  → fast scan of last 50000 blocks only (for UI triggers after bet)
+// ?reset=true   → clears stored last_block, forces fresh scan from INDEXER_START_BLOCK
 // (no param)    → full historical sync from last_block
 export async function GET(request: Request) {
   try {
-    const recent = new URL(request.url).searchParams.get("recent") === "true"
+    const params = new URL(request.url).searchParams
+    const recent = params.get("recent") === "true"
+    if (params.get("reset") === "true") {
+      await ensureSchema()
+      await setIndexerState("last_block", String(DEFAULT_START_BLOCK - 1n))
+      return NextResponse.json({ ok: true, reset: true, newLastBlock: String(DEFAULT_START_BLOCK - 1n) })
+    }
     return NextResponse.json(await runSync(recent))
   } catch (err) {
     console.error("[indexer/sync]", err)
