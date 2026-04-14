@@ -492,13 +492,18 @@ export default function AdminPage() {
       .catch(() => {})
   }, [])
 
-  const syncIndexer = async () => {
+  const syncIndexer = async (reset?: boolean) => {
     setSyncLoading(true)
     setSyncResult(null)
     try {
-      const res = await fetch("/api/indexer/sync")
+      const url = reset ? "/api/indexer/sync?reset=true" : "/api/indexer/sync"
+      const res = await fetch(url)
       const data = await res.json()
-      setSyncResult(`Synced +${data.blocksProcessed ?? 0} blocks from #${data.startBlock ?? "?"}, ${data.betsIndexed ?? 0} bets, ${data.resolutionsIndexed ?? 0} resolutions → last #${data.newLastBlock ?? "?"}`)
+      if (reset) {
+        setSyncResult(`Indexer reset ✓ — last_block cleared. Now click Sync Indexer to backfill from block 81,968,790.`)
+      } else {
+        setSyncResult(`Synced +${data.blocksProcessed ?? 0} blocks from #${data.startBlock ?? "?"}, ${data.betsIndexed ?? 0} bets, ${data.resolutionsIndexed ?? 0} resolutions → last #${data.newLastBlock ?? "?"}`)
+      }
     } catch {
       setSyncResult("Sync failed — check console")
     } finally {
@@ -603,8 +608,11 @@ export default function AdminPage() {
           <Button size="sm" variant="outline" onClick={triggerAutoSettle} disabled={settleLoading}>
             {settleLoading ? "Settling…" : "⚡ Auto-Settle"}
           </Button>
-          <Button size="sm" variant="outline" onClick={syncIndexer} disabled={syncLoading}>
+          <Button size="sm" variant="outline" onClick={() => syncIndexer()} disabled={syncLoading}>
             {syncLoading ? "Syncing…" : "Sync Indexer"}
+          </Button>
+          <Button size="sm" variant="destructive" onClick={() => syncIndexer(true)} disabled={syncLoading}>
+            Reset Indexer
           </Button>
           <Button size="sm" variant="outline" onClick={checkHealth}>
             Refresh health

@@ -154,11 +154,18 @@ export async function POST(request: Request) {
 }
 
 // GET — unprotected, allows manual browser triggers and health checks
-// ?recent=true  → fast scan of last 1000 blocks only (for UI triggers after bet)
+// ?recent=true  → fast scan of last 50000 blocks only (for UI triggers after bet)
+// ?reset=true   → clears stored last_block, forces fresh scan from INDEXER_START_BLOCK
 // (no param)    → full historical sync from last_block
 export async function GET(request: Request) {
   try {
-    const recent = new URL(request.url).searchParams.get("recent") === "true"
+    const params = new URL(request.url).searchParams
+    const recent = params.get("recent") === "true"
+    if (params.get("reset") === "true") {
+      await ensureSchema()
+      await setIndexerState("last_block", String(DEFAULT_START_BLOCK - 1n))
+      return NextResponse.json({ ok: true, reset: true, newLastBlock: String(DEFAULT_START_BLOCK - 1n) })
+    }
     return NextResponse.json(await runSync(recent))
   } catch (err) {
     console.error("[indexer/sync]", err)
