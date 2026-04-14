@@ -1,10 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { Badge } from "@/components/ui/badge"
 import { Clock, Zap, TrendingUp, TrendingDown, Users } from "lucide-react"
 import { useCountdown } from "@/hooks/use-countdown"
-import { PlatformIcon } from "@/components/platform-icon"
 
 interface MarketCardProps {
   id: string
@@ -83,12 +81,25 @@ export function MarketCard({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
 
-            {/* Platform badge */}
-            <Badge
-              className={`absolute top-3 left-3 bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs px-2 py-1`}
-            >
-              <PlatformIcon platform={platform} className="h-3.5 w-3.5" />
-            </Badge>
+            {/* Author info overlaid bottom-left */}
+            <div className="absolute bottom-3 left-3 flex items-center gap-2">
+              {authorAvatar ? (
+                <img
+                  src={authorAvatar}
+                  alt={authorName || ""}
+                  className="h-7 w-7 rounded-full object-cover border border-white/30 shrink-0"
+                />
+              ) : (
+                <div className={`h-7 w-7 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
+                  <span className="text-white font-bold text-[10px]">{platform[0].toUpperCase()}</span>
+                </div>
+              )}
+              {authorName && (
+                <span className="text-xs font-semibold text-white drop-shadow-sm truncate max-w-[120px]">
+                  @{authorName}
+                </span>
+              )}
+            </div>
 
             {/* Time */}
             <div className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-md">
@@ -100,52 +111,41 @@ export function MarketCard({
           </div>
         ) : (
           <div className="relative h-44 overflow-hidden flex flex-col">
-            {/* Header row: platform badge + time */}
+            {/* Header row: author avatar + handle (left) + time (right) */}
             <div className="pt-4 px-4 flex items-center justify-between shrink-0">
-              <Badge
-                className={`bg-gradient-to-r ${gradient} text-white border-0 font-bold text-xs px-2 py-1`}
-              >
-                <PlatformIcon platform={platform} className="h-3.5 w-3.5" />
-              </Badge>
-              <div className="flex items-center gap-1 text-muted-foreground">
+              <div className="flex items-center gap-2 min-w-0">
+                {authorAvatar ? (
+                  <img
+                    src={authorAvatar}
+                    alt={authorName || ""}
+                    className="h-8 w-8 rounded-full object-cover shrink-0 border border-border/30"
+                  />
+                ) : (
+                  <div className={`h-8 w-8 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
+                    <span className="text-white font-bold text-xs">{platform[0].toUpperCase()}</span>
+                  </div>
+                )}
+                {authorName && (
+                  <p className="text-xs font-semibold text-foreground truncate">@{authorName}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground shrink-0 ml-2">
                 <Clock className={`h-3 w-3 ${ended ? "text-destructive" : ""}`} />
                 <span className={`text-xs font-mono ${ended ? "text-destructive" : ""}`}>{timeDisplay}</span>
               </div>
             </div>
 
-            {/* Tweet preview — shown when embed data is available */}
-            {(authorName || postText) && (
-              <div className="mx-4 mt-3 p-3 rounded-xl bg-muted/30 border border-border/30 flex-1 min-h-0 overflow-hidden">
-                <div className="flex items-start gap-2.5">
-                  {authorAvatar ? (
-                    <img
-                      src={authorAvatar}
-                      alt={authorName || ""}
-                      className="h-8 w-8 rounded-full object-cover shrink-0 border border-border/30"
-                    />
-                  ) : (
-                    <div className={`h-8 w-8 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0`}>
-                      <span className="text-white font-bold text-xs">
-                        {(authorName?.[0] || platform[0]).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1 overflow-hidden">
-                    {authorName && (
-                      <p className="text-xs font-semibold text-foreground truncate">@{authorName}</p>
-                    )}
-                    {postText && (
-                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mt-0.5">
-                        {postText}
-                      </p>
-                    )}
-                  </div>
-                </div>
+            {/* Tweet text — flat, no container box */}
+            {postText && (
+              <div className="px-4 mt-2.5 flex-1 min-h-0 overflow-hidden">
+                <p className="text-[11px] text-muted-foreground line-clamp-3 leading-relaxed">
+                  {postText}
+                </p>
                 {mediaThumb && (
                   <img
                     src={mediaThumb}
                     alt=""
-                    className="mt-2 w-full h-16 object-cover rounded-lg"
+                    className="mt-2 w-full h-14 object-cover rounded-lg"
                   />
                 )}
               </div>
