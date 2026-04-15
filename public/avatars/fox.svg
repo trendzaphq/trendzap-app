@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="50" fill="#D96020"/>
+  <!-- left pointed ear -->
+  <polygon points="22,42 14,10 40,30" fill="#D96020"/>
+  <polygon points="24,40 18,16 37,30" fill="#FFB890"/>
+  <!-- right pointed ear -->
+  <polygon points="78,42 86,10 60,30" fill="#D96020"/>
+  <polygon points="76,40 82,16 63,30" fill="#FFB890"/>
+  <!-- face -->
+  <circle cx="50" cy="54" r="34" fill="#F07838"/>
+  <!-- white muzzle -->
+  <ellipse cx="50" cy="67" rx="22" ry="15" fill="#FFF5EC"/>
+  <!-- white forehead patch -->
+  <ellipse cx="50" cy="42" rx="9" ry="6" fill="#FFF5EC"/>
+  <!-- left eye -->
+  <circle cx="37" cy="49" r="6" fill="#1A0900"/>
+  <circle cx="39" cy="47" r="1.8" fill="white"/>
+  <!-- right eye -->
+  <circle cx="63" cy="49" r="6" fill="#1A0900"/>
+  <circle cx="65" cy="47" r="1.8" fill="white"/>
+  <!-- nose -->
+  <ellipse cx="50" cy="61" rx="4.5" ry="3.5" fill="#1A0900"/>
+  <!-- mouth -->
+  <path d="M45 64 Q50 70 55 64" stroke="#8B4010" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+</svg>

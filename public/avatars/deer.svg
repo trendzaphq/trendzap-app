@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="50" fill="#C08040"/>
+  <!-- left antler -->
+  <path d="M32 32 L24 8" stroke="#7A4C20" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M24 8 L17 18" stroke="#7A4C20" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M24 8 L29 16" stroke="#7A4C20" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M22 12 L14 16" stroke="#7A4C20" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- right antler -->
+  <path d="M68 32 L76 8" stroke="#7A4C20" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M76 8 L83 18" stroke="#7A4C20" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M76 8 L71 16" stroke="#7A4C20" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M78 12 L86 16" stroke="#7A4C20" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- left ear -->
+  <ellipse cx="24" cy="43" rx="11" ry="15" fill="#C08040" transform="rotate(-18 24 43)"/>
+  <ellipse cx="24" cy="43" rx="6.5" ry="9" fill="#E8B090" transform="rotate(-18 24 43)"/>
+  <!-- right ear -->
+  <ellipse cx="76" cy="43" rx="11" ry="15" fill="#C08040" transform="rotate(18 76 43)"/>
+  <ellipse cx="76" cy="43" rx="6.5" ry="9" fill="#E8B090" transform="rotate(18 76 43)"/>
+  <!-- face -->
+  <circle cx="50" cy="57" r="32" fill="#E8A860"/>
+  <!-- left eye -->
+  <circle cx="38" cy="51" r="6" fill="#1A0900"/>
+  <circle cx="40" cy="49" r="1.8" fill="white"/>
+  <!-- right eye -->
+  <circle cx="62" cy="51" r="6" fill="#1A0900"/>
+  <circle cx="64" cy="49" r="1.8" fill="white"/>
+  <!-- nose -->
+  <ellipse cx="50" cy="62" rx="6.5" ry="5" fill="#8B4A30"/>
+  <circle cx="49" cy="61" r="1.8" fill="white" opacity="0.35"/>
+  <!-- mouth -->
+  <path d="M44 67 Q50 73 56 67" stroke="#8B4A30" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="50" fill="#F0F0F0"/>
+  <!-- black ears -->
+  <circle cx="22" cy="22" r="15" fill="#222222"/>
+  <circle cx="78" cy="22" r="15" fill="#222222"/>
+  <!-- face -->
+  <circle cx="50" cy="57" r="34" fill="#FAFAFA"/>
+  <!-- left eye patch -->
+  <ellipse cx="36" cy="49" rx="13" ry="11" fill="#222222" transform="rotate(-15 36 49)"/>
+  <!-- right eye patch -->
+  <ellipse cx="64" cy="49" rx="13" ry="11" fill="#222222" transform="rotate(15 64 49)"/>
+  <!-- left eye white -->
+  <circle cx="36" cy="50" r="5.5" fill="white"/>
+  <circle cx="37" cy="50" r="3.5" fill="#222222"/>
+  <circle cx="37.5" cy="49" r="1.2" fill="white"/>
+  <!-- right eye white -->
+  <circle cx="64" cy="50" r="5.5" fill="white"/>
+  <circle cx="65" cy="50" r="3.5" fill="#222222"/>
+  <circle cx="65.5" cy="49" r="1.2" fill="white"/>
+  <!-- nose -->
+  <ellipse cx="50" cy="63" rx="5.5" ry="4" fill="#222222"/>
+  <!-- mouth -->
+  <path d="M45 67 Q50 73 55 67" stroke="#555" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- bow tie -->
+  <polygon points="38,79 47,84 38,89" fill="#E63040"/>
+  <polygon points="62,79 53,84 62,89" fill="#E63040"/>
+  <circle cx="50" cy="84" r="3.5" fill="#C01020"/>
+</svg>

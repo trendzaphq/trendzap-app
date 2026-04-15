@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="50" fill="#5A6E96"/>
+  <!-- left pointy ear -->
+  <polygon points="23,42 14,8 40,30" fill="#5A6E96"/>
+  <polygon points="25,40 18,14 38,30" fill="#90A0C0"/>
+  <!-- right pointy ear -->
+  <polygon points="77,42 86,8 60,30" fill="#5A6E96"/>
+  <polygon points="75,40 82,14 62,30" fill="#90A0C0"/>
+  <!-- face -->
+  <circle cx="50" cy="55" r="34" fill="#7A90B8"/>
+  <!-- muzzle area -->
+  <ellipse cx="50" cy="67" rx="21" ry="14" fill="#A0B0CC"/>
+  <!-- left eye (yellow, wolf style) -->
+  <circle cx="37" cy="49" r="7" fill="#D8C040"/>
+  <circle cx="37" cy="49" r="4" fill="#1A1A1A"/>
+  <circle cx="38.5" cy="47.5" r="1.5" fill="white"/>
+  <!-- right eye -->
+  <circle cx="63" cy="49" r="7" fill="#D8C040"/>
+  <circle cx="63" cy="49" r="4" fill="#1A1A1A"/>
+  <circle cx="64.5" cy="47.5" r="1.5" fill="white"/>
+  <!-- nose -->
+  <ellipse cx="50" cy="62" rx="5" ry="3.8" fill="#1A1A1A"/>
+  <!-- mouth -->
+  <path d="M44 66 Q50 72 56 66" stroke="#5A6E96" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

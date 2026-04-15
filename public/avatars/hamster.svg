@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="50" fill="#E09050"/>
+  <!-- chubby cheek pouches (signature hamster feature) -->
+  <circle cx="14" cy="62" r="22" fill="#F0B070"/>
+  <circle cx="86" cy="62" r="22" fill="#F0B070"/>
+  <!-- round ears -->
+  <circle cx="24" cy="22" r="14" fill="#E09050"/>
+  <circle cx="24" cy="22" r="9" fill="#FFBA80"/>
+  <circle cx="76" cy="22" r="14" fill="#E09050"/>
+  <circle cx="76" cy="22" r="9" fill="#FFBA80"/>
+  <!-- face (on top of cheeks) -->
+  <circle cx="50" cy="50" r="30" fill="#F0B878"/>
+  <!-- left eye -->
+  <circle cx="38" cy="44" r="7" fill="#1A0900"/>
+  <circle cx="40" cy="42" r="2.2" fill="white"/>
+  <!-- right eye -->
+  <circle cx="62" cy="44" r="7" fill="#1A0900"/>
+  <circle cx="64" cy="42" r="2.2" fill="white"/>
+  <!-- nose -->
+  <ellipse cx="50" cy="56" rx="4.5" ry="3.5" fill="#E07860"/>
+  <!-- mouth -->
+  <path d="M45 59 Q50 65 55 59" stroke="#C05840" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- hipster glasses -->
+  <rect x="27" y="37" width="15" height="11" rx="5" fill="none" stroke="#2a2a2a" stroke-width="2"/>
+  <rect x="58" y="37" width="15" height="11" rx="5" fill="none" stroke="#2a2a2a" stroke-width="2"/>
+  <line x1="42" y1="42.5" x2="58" y2="42.5" stroke="#2a2a2a" stroke-width="2"/>
+  <line x1="27" y1="42.5" x2="21" y2="41" stroke="#2a2a2a" stroke-width="2"/>
+  <line x1="73" y1="42.5" x2="79" y2="41" stroke="#2a2a2a" stroke-width="2"/>
+</svg>
