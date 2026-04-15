@@ -33,6 +33,7 @@ import { ShareToX } from "@/components/share-to-x"
 import { BetConfirmModal } from "@/components/bet-confirm-modal"
 import { PostEmbed } from "@/components/post-embed"
 import { PlatformIcon } from "@/components/platform-icon"
+import { UserAvatar } from "@/components/user-avatar"
 
 interface MarketDetailViewProps {
   marketId: string
@@ -682,9 +683,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               <div className="space-y-2">
                 {activityBets.map((bet, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                      {bet.avatar}
-                    </div>
+                    <UserAvatar address={bet.address} size={36} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-sm">{bet.short}</span>

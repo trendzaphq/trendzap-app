@@ -23,10 +23,13 @@ export async function POST(req: NextRequest) {
 
     const normalized = address.toLowerCase()
 
-    // Upsert: create if new, update last_seen if exists
+    // Generate a random seed for the avatar (used by DiceBear on first signup)
+    const avatarSeed = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6)
+
+    // Upsert: create with random avatar seed if new, update last_seen if exists
     await sql`
-      INSERT INTO users (address, first_seen, last_seen)
-      VALUES (${normalized}, NOW(), NOW())
+      INSERT INTO users (address, first_seen, last_seen, avatar_seed)
+      VALUES (${normalized}, NOW(), NOW(), ${avatarSeed})
       ON CONFLICT (address) DO UPDATE
       SET last_seen = NOW()
     `

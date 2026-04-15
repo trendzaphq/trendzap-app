@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NotificationsBell } from "@/components/notifications-bell"
-import { GradientAvatar } from "@/components/user-profile"
+import { UserAvatar } from "@/components/user-avatar"
 import { SearchModal } from "@/components/search-modal"
 import { isAdminAddress } from "@/lib/admin"
 
@@ -45,7 +45,7 @@ export function Navigation() {
 
   const privyReady = ready || privyTimedOut
   const navAddress = wallets[0]?.address ?? ""
-  const navInitials = (user?.email?.address?.charAt(0) || navAddress.charAt(2) || "U").toUpperCase()
+
   const isAdmin = isAdminAddress(navAddress)
 
   // Register wallet address in DB for user count tracking
@@ -184,7 +184,7 @@ export function Navigation() {
                     variant="ghost"
                     className="h-9 w-9 rounded-full p-0 overflow-hidden border border-primary/20 hover:border-primary/40 transition-colors"
                   >
-                    <GradientAvatar address={navAddress} initials={navInitials} size={36} />
+                    <UserAvatar address={navAddress} size={36} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
