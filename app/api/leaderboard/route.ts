@@ -28,7 +28,9 @@ export async function GET(req: Request) {
       const profit = payoutEth - costEth
       const totalBets = parseInt(row.total_bets)
       const wins = parseInt(row.wins)
-      const winRate = totalBets > 0 ? Math.round((wins / totalBets) * 100 * 10) / 10 : 0
+      const totalResolved = parseInt(row.total_resolved)
+      // Win rate = correct predictions / total resolved bets (not total bets, not claim count)
+      const winRate = totalResolved > 0 ? Math.round((wins / totalResolved) * 100 * 10) / 10 : 0
       const address = row.trader_address
       const short = `${address.slice(0, 6)}…${address.slice(-4)}`
 
