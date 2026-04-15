@@ -21,7 +21,7 @@ function ProfileHero() {
   const { markets } = useMarketList()
   const [copied, setCopied] = useState(false)
 
-  const address = wallets[0]?.address ?? ""
+  const address = authenticated ? (wallets[0]?.address ?? "") : ""
   const email = user?.email?.address
   const displayName = email
     ? email.split("@")[0]
@@ -161,6 +161,8 @@ function ProfileHero() {
 }
 
 export default function ProfilePage() {
+  const { authenticated } = usePrivy()
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navigation />
@@ -169,25 +171,31 @@ export default function ProfilePage() {
         <div className="container mx-auto px-4 py-5 max-w-2xl space-y-5">
           <ProfileHero />
 
-          <Tabs defaultValue="bets" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="bets">My Bets</TabsTrigger>
-              <TabsTrigger value="markets">My Markets</TabsTrigger>
-              <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
-            </TabsList>
+          {authenticated ? (
+            <Tabs defaultValue="bets" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="bets">My Bets</TabsTrigger>
+                <TabsTrigger value="markets">My Markets</TabsTrigger>
+                <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="bets" className="mt-4">
-              <UserBets />
-            </TabsContent>
+              <TabsContent value="bets" className="mt-4">
+                <UserBets />
+              </TabsContent>
 
-            <TabsContent value="markets" className="mt-4">
-              <UserMarkets />
-            </TabsContent>
+              <TabsContent value="markets" className="mt-4">
+                <UserMarkets />
+              </TabsContent>
 
-            <TabsContent value="portfolio" className="mt-4">
-              <PortfolioView />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="portfolio" className="mt-4">
+                <PortfolioView />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground text-sm">
+              Connect your wallet to view bets, markets, and portfolio.
+            </div>
+          )}
         </div>
       </main>
     </div>
