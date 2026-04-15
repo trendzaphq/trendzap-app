@@ -166,7 +166,17 @@ export async function GET(request: Request) {
       await setIndexerState("last_block", String(DEFAULT_START_BLOCK - 1n))
       return NextResponse.json({ ok: true, reset: true, newLastBlock: String(DEFAULT_START_BLOCK - 1n) })
     }
-    return NextResponse.json(await runSync(recent))
+    const result = await runSync(recent)
+
+    // Auto-continue: if still >5000 blocks behind, fire next batch in background
+    // so the user doesn't have to keep clicking "Sync Indexer"
+    if (!recent && result.ok && BigInt(result.newLastBlock) < BigInt(result.latestBlock) - 5000n) {
+      const host = request.headers.get("host") || "localhost:3000"
+      const proto = host.includes("localhost") ? "http" : "https"
+      fetch(`${proto}://${host}/api/indexer/sync`).catch(() => {})
+    }
+
+    return NextResponse.json(result)
   } catch (err) {
     console.error("[indexer/sync]", err)
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 })

@@ -89,11 +89,14 @@ export function PortfolioView() {
   const wins = history.filter((b) => b.result === "won")
   const losses = history.filter((b) => b.result === "lost")
   const totalWon = wins.reduce((s, b) => s + parseFloat(b.payout || "0"), 0)
-  const totalStaked = history.reduce((s, b) => s + parseFloat(b.amount || "0"), 0)
-  const netPnl = totalWon - totalStaked
+  const resolvedStaked = history.reduce((s, b) => s + parseFloat(b.amount || "0"), 0)
+  const netPnl = totalWon - resolvedStaked
   const winRate = history.length > 0 ? Math.round((wins.length / history.length) * 100) : null
   const activeStaked = active.reduce((s, b) => s + parseFloat(b.amount || "0"), 0)
-  const avgBet = history.length > 0 ? totalStaked / history.length : 0
+  const totalStaked = resolvedStaked + activeStaked
+  const totalBets = history.length + active.length
+  const avgBet = totalBets > 0 ? totalStaked / totalBets : 0
+  const hasHistory = history.length > 0
 
   // Build cumulative PnL chart data
   const chartData: PnLPoint[] = history.reduce<PnLPoint[]>((acc, bet, i) => {
@@ -136,22 +139,32 @@ export function PortfolioView() {
         {/* Net PnL — full width highlight */}
         <div
           className={`col-span-2 flex items-center justify-between p-4 rounded-xl border ${
-            isPositive
+            !hasHistory
+              ? "bg-muted/30 border-border/30"
+              : isPositive
               ? "bg-emerald-500/10 border-emerald-500/20"
               : "bg-destructive/10 border-destructive/20"
           }`}
         >
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Net P&L</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+              {hasHistory ? "Net P&L" : "Realized P&L"}
+            </p>
             <p
               className={`text-2xl font-bold font-mono tabular-nums ${
-                isPositive ? "text-emerald-400" : "text-destructive"
+                !hasHistory
+                  ? "text-muted-foreground"
+                  : isPositive
+                  ? "text-emerald-400"
+                  : "text-destructive"
               }`}
             >
-              {isPositive ? "+" : ""}{netPnl.toFixed(2)} USDC
+              {hasHistory ? (isPositive ? "+" : "") + netPnl.toFixed(2) + " USDC" : "No resolved bets yet"}
             </p>
           </div>
-          {isPositive ? (
+          {!hasHistory ? (
+            <BarChart3 className="h-8 w-8 text-muted-foreground/40" />
+          ) : isPositive ? (
             <TrendingUp className="h-8 w-8 text-emerald-400/60" />
           ) : (
             <TrendingDown className="h-8 w-8 text-destructive/60" />
@@ -172,11 +185,11 @@ export function PortfolioView() {
         <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/30 border border-border/30">
           <BarChart3 className="h-4 w-4 text-secondary" />
           <span className="text-lg font-bold font-mono tabular-nums">
-            {totalStaked.toFixed(1)}
+            {totalStaked.toFixed(2)}
           </span>
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Staked</span>
           <span className="text-[10px] text-muted-foreground">
-            avg {avgBet.toFixed(1)} USDC/bet
+            {totalBets} bet{totalBets !== 1 ? "s" : ""} · avg {avgBet.toFixed(2)}
           </span>
         </div>
       </div>

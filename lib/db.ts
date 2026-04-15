@@ -189,6 +189,7 @@ export interface LeaderboardEntry {
   total_cost_wei: string
   total_payout_wei: string
   wins: string
+  total_resolved: string
 }
 
 export async function getLeaderboard(since?: number): Promise<LeaderboardEntry[]> {
@@ -199,7 +200,8 @@ export async function getLeaderboard(since?: number): Promise<LeaderboardEntry[]
         COUNT(*)::TEXT as total_bets,
         COALESCE(SUM(CAST(b.cost_wei AS NUMERIC)), 0)::TEXT as total_cost_wei,
         COALESCE((SELECT SUM(CAST(c.payout_wei AS NUMERIC)) FROM claim_events c WHERE LOWER(c.user_address) = LOWER(b.trader_address)), 0)::TEXT as total_payout_wei,
-        COALESCE((SELECT COUNT(*) FROM claim_events c WHERE LOWER(c.user_address) = LOWER(b.trader_address)), 0)::TEXT as wins
+        COALESCE((SELECT COUNT(*) FROM bet_events bw INNER JOIN resolution_events r ON bw.market_id = r.market_id WHERE LOWER(bw.trader_address) = LOWER(b.trader_address) AND ((r.outcome = 1 AND bw.is_over = true) OR (r.outcome = 2 AND bw.is_over = false))), 0)::TEXT as wins,
+        COALESCE((SELECT COUNT(*) FROM bet_events br INNER JOIN resolution_events r ON br.market_id = r.market_id WHERE LOWER(br.trader_address) = LOWER(b.trader_address)), 0)::TEXT as total_resolved
       FROM bet_events b
       WHERE b.block_timestamp > ${since}
       GROUP BY b.trader_address
@@ -213,7 +215,8 @@ export async function getLeaderboard(since?: number): Promise<LeaderboardEntry[]
       COUNT(*)::TEXT as total_bets,
       COALESCE(SUM(CAST(b.cost_wei AS NUMERIC)), 0)::TEXT as total_cost_wei,
       COALESCE((SELECT SUM(CAST(c.payout_wei AS NUMERIC)) FROM claim_events c WHERE LOWER(c.user_address) = LOWER(b.trader_address)), 0)::TEXT as total_payout_wei,
-      COALESCE((SELECT COUNT(*) FROM claim_events c WHERE LOWER(c.user_address) = LOWER(b.trader_address)), 0)::TEXT as wins
+      COALESCE((SELECT COUNT(*) FROM bet_events bw INNER JOIN resolution_events r ON bw.market_id = r.market_id WHERE LOWER(bw.trader_address) = LOWER(b.trader_address) AND ((r.outcome = 1 AND bw.is_over = true) OR (r.outcome = 2 AND bw.is_over = false))), 0)::TEXT as wins,
+      COALESCE((SELECT COUNT(*) FROM bet_events br INNER JOIN resolution_events r ON br.market_id = r.market_id WHERE LOWER(br.trader_address) = LOWER(b.trader_address)), 0)::TEXT as total_resolved
     FROM bet_events b
     GROUP BY b.trader_address
     ORDER BY (COALESCE((SELECT SUM(CAST(c2.payout_wei AS NUMERIC)) FROM claim_events c2 WHERE LOWER(c2.user_address) = LOWER(b.trader_address)), 0) - COALESCE(SUM(CAST(b.cost_wei AS NUMERIC)), 0)) DESC
