@@ -9,6 +9,7 @@ import {
   insertResolutionEvent,
   insertClaimEvent,
   insertPricePoint,
+  purgeEventTables,
 } from "@/lib/db"
 
 const DEFAULT_START_BLOCK = BigInt(process.env.INDEXER_START_BLOCK || "81968790")
@@ -163,6 +164,11 @@ export async function GET(request: Request) {
     const recent = params.get("recent") === "true"
     if (params.get("reset") === "true") {
       await ensureSchema()
+      if (params.get("purge") === "true") {
+        // Hard purge: wipe all event tables + reset scan pointer
+        await purgeEventTables()
+        return NextResponse.json({ ok: true, purged: true, newLastBlock: String(DEFAULT_START_BLOCK - 1n) })
+      }
       await setIndexerState("last_block", String(DEFAULT_START_BLOCK - 1n))
       return NextResponse.json({ ok: true, reset: true, newLastBlock: String(DEFAULT_START_BLOCK - 1n) })
     }
