@@ -29,6 +29,7 @@ import {
 import { NotificationsBell } from "@/components/notifications-bell"
 import { GradientAvatar } from "@/components/user-profile"
 import { SearchModal } from "@/components/search-modal"
+import { isAdminAddress } from "@/lib/admin"
 
 export function Navigation() {
   const router = useRouter()
@@ -45,7 +46,7 @@ export function Navigation() {
   const privyReady = ready || privyTimedOut
   const navAddress = wallets[0]?.address ?? ""
   const navInitials = (user?.email?.address?.charAt(0) || navAddress.charAt(2) || "U").toUpperCase()
-  const isAdmin = navAddress.toLowerCase() === "0x05394029ea22767d2283bcd0be03b13353781212"
+  const isAdmin = isAdminAddress(navAddress)
 
   // Register wallet address in DB for user count tracking
   useEffect(() => {

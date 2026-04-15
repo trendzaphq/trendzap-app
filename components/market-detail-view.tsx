@@ -290,7 +290,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
 
         {/* Live post embed with real-time stats */}
         <div className="p-4">
-          <PostEmbed url={market.sourceUrl} />
+          <PostEmbed url={market.sourceUrl} hideAuthor />
         </div>
 
         {/* Market title + meta row */}
