@@ -81,6 +81,7 @@ export async function ensureSchema() {
   `
   // Migrations for existing tables
   await sql`ALTER TABLE market_metadata ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE`
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_seed TEXT DEFAULT NULL`
 }
 
 export interface MarketMeta {

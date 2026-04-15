@@ -4,7 +4,8 @@ import { Navigation } from "@/components/navigation"
 import { UserBets } from "@/components/user-bets"
 import { UserMarkets } from "@/components/user-markets"
 import { PortfolioView } from "@/components/portfolio-view"
-import { GradientAvatar, getAddressGradient } from "@/components/user-profile"
+import { getAddressGradient } from "@/components/user-profile"
+import { UserAvatar } from "@/components/user-avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePrivy, useWallets } from "@privy-io/react-auth"
 import { useMarketList } from "@/hooks/use-market"
@@ -27,7 +28,7 @@ function ProfileHero() {
     : address
     ? `${address.slice(0, 6)}…${address.slice(-4)}`
     : "Anonymous"
-  const initials = displayName.slice(0, 2).toUpperCase()
+
   const [bannerC1, bannerC2] = getAddressGradient(address)
   const [balance, setBalance] = useState<string | null>(null)
   const [winRate, setWinRate] = useState<string | null>(null)
@@ -84,7 +85,7 @@ function ProfileHero() {
             style={{ padding: "3px", background: "hsl(var(--card))", boxShadow: "0 0 0 3px hsl(var(--card))" }}
           >
             {authenticated && address ? (
-              <GradientAvatar address={address} initials={initials} size={80} />
+              <UserAvatar address={address} size={80} />
             ) : (
               <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground">
                 ?

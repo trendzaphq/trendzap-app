@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, TrendingDown } from "lucide-react"
+import { UserAvatar } from "@/components/user-avatar"
 
 interface Bet {
   address: string
@@ -54,9 +54,7 @@ export function RecentBets({ marketId }: { marketId: string }) {
               key={i}
               className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
             >
-              <Avatar className="h-10 w-10 border-2 border-primary/20">
-                <AvatarFallback className="bg-primary/10 text-primary font-semibold">{bet.avatar}</AvatarFallback>
-              </Avatar>
+              <UserAvatar address={bet.address} size={40} className="border-2 border-primary/20" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm">{bet.short}</span>

@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Trophy, TrendingUp, Target, Zap, Loader2 } from "lucide-react"
+import { UserAvatar } from "@/components/user-avatar"
 
 interface LeaderboardProps {
   timeframe: "all-time" | "weekly" | "daily"
@@ -93,19 +93,13 @@ export function Leaderboard({ timeframe }: LeaderboardProps) {
 
               <div className="relative">
                 <div className="relative inline-block mb-4">
-                  <Avatar className="h-20 w-20 border-4 border-primary/20">
-                    <AvatarFallback
-                      className={`text-2xl font-bold ${
-                        leader.rank === 1
-                          ? "bg-gradient-to-br from-[#FFD700] to-[#FFA500] text-black"
-                          : leader.rank === 2
-                            ? "bg-gradient-to-br from-[#C0C0C0] to-[#A8A8A8] text-black"
-                            : "bg-gradient-to-br from-[#CD7F32] to-[#8B4513] text-black"
-                      }`}
-                    >
-                      {leader.avatar}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className={`rounded-full border-4 overflow-hidden ${
+                    leader.rank === 1 ? "border-[#FFD700]"
+                    : leader.rank === 2 ? "border-[#C0C0C0]"
+                    : "border-[#CD7F32]"
+                  }`}>
+                    <UserAvatar address={leader.address} size={80} />
+                  </div>
                   <div
                     className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br ${getRankStyle(leader.rank)} flex items-center justify-center font-bold text-black text-sm shadow-lg`}
                   >
@@ -133,9 +127,7 @@ export function Leaderboard({ timeframe }: LeaderboardProps) {
                 {leader.rank}
               </div>
 
-              <Avatar className="h-12 w-12 border-2 border-primary/20">
-                <AvatarFallback className="bg-primary/10 text-primary font-bold">{leader.avatar}</AvatarFallback>
-              </Avatar>
+              <UserAvatar address={leader.address} size={48} className="border-2 border-primary/20" />
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">

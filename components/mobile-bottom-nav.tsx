@@ -6,7 +6,7 @@ import { usePrivy, useWallets } from "@privy-io/react-auth"
 import { Home, Search, Plus, Trophy, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SearchModal } from "@/components/search-modal"
-import { GradientAvatar } from "@/components/user-profile"
+import { UserAvatar } from "@/components/user-avatar"
 
 export function MobileBottomNav() {
   const pathname = usePathname()
@@ -16,7 +16,7 @@ export function MobileBottomNav() {
   const [searchOpen, setSearchOpen] = useState(false)
 
   const navAddress = wallets[0]?.address ?? ""
-  const navInitials = (user?.email?.address?.charAt(0) || navAddress.charAt(2) || "U").toUpperCase()
+
 
   const isProfile = pathname.startsWith("/profile")
   const isLeaderboard = pathname === "/leaderboard"
@@ -82,7 +82,7 @@ export function MobileBottomNav() {
             >
               {authenticated && navAddress ? (
                 <div className={cn("rounded-full transition-all duration-200", isProfile ? "ring-2 ring-primary ring-offset-1 ring-offset-[oklch(0.09_0.02_264)]" : "")}>
-                  <GradientAvatar address={navAddress} initials={navInitials} size={24} />
+                  <UserAvatar address={navAddress} size={24} />
                 </div>
               ) : (
                 <User className="h-[22px] w-[22px]" />

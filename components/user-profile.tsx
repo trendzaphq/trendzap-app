@@ -4,6 +4,7 @@ import { usePrivy, useWallets } from "@privy-io/react-auth"
 import { Card } from "@/components/ui/card"
 import { Copy, ExternalLink, CheckCircle2 } from "lucide-react"
 import { useState } from "react"
+import { UserAvatar } from "@/components/user-avatar"
 
 const GRADIENTS: [string, string][] = [
   ["#7C3AED", "#2563EB"],
@@ -66,7 +67,7 @@ export function UserProfile() {
     : address
     ? `${address.slice(0, 6)}…${address.slice(-4)}`
     : "Anonymous"
-  const initials = displayName.slice(0, 2).toUpperCase()
+
   const [bannerC1, bannerC2] = getAddressGradient(address)
 
   const copyAddress = () => {
@@ -91,7 +92,7 @@ export function UserProfile() {
         <div className="-mt-10 mb-4">
           <div className="inline-block p-1 rounded-full bg-card shadow-lg" style={{ border: "3px solid var(--color-card)" }}>
             {authenticated && address ? (
-              <GradientAvatar address={address} initials={initials} size={72} />
+              <UserAvatar address={address} size={72} />
             ) : (
               <div className="h-[72px] w-[72px] rounded-full bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground">
                 ?
