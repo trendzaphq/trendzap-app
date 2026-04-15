@@ -284,4 +284,11 @@ export async function upsertUser(address: string) {
   `
 }
 
+// Hard purge — wipes all indexed event data so a fresh sync starts clean.
+// market_metadata is intentionally NOT touched (user-created, not on-chain).
+export async function purgeEventTables() {
+  await sql`TRUNCATE TABLE bet_events, resolution_events, claim_events, price_history RESTART IDENTITY`
+  await sql`DELETE FROM indexer_state WHERE key = 'last_block'`
+}
+
 export { sql }

@@ -622,6 +622,27 @@ export default function AdminPage() {
     }
   }
 
+  const purgeAndResync = async () => {
+    if (!window.confirm("⚠️ This will DELETE all indexed events (bets, resolutions, claims, prices) and restart the full sync from scratch.\n\nMarket metadata is preserved.\n\nProceed?")) return
+    setSyncLoading(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch("/api/indexer/sync?reset=true&purge=true")
+      const data = await res.json()
+      if (data.ok) {
+        setSyncResult("Purge complete ✓ — all event tables cleared. Auto-sync will begin shortly (may take several minutes to backfill).")
+        // Fire initial sync to kick off auto-continue chain
+        fetch("/api/indexer/sync").catch(() => {})
+      } else {
+        setSyncResult(`Purge failed: ${data.error}`)
+      }
+    } catch {
+      setSyncResult("Purge failed — check console")
+    } finally {
+      setSyncLoading(false)
+    }
+  }
+
   const triggerAutoSettle = async () => {
     setSettleLoading(true)
     try {
@@ -725,6 +746,9 @@ export default function AdminPage() {
           <Button size="sm" variant="destructive" onClick={() => syncIndexer(true)} disabled={syncLoading}>
             Reset Indexer
           </Button>
+          <Button size="sm" variant="destructive" onClick={purgeAndResync} disabled={syncLoading}>
+            ☢️ Purge & Full Resync
+          </Button>
           <Button size="sm" variant="outline" onClick={checkHealth}>
             Refresh health
           </Button>
@@ -805,9 +829,8 @@ export default function AdminPage() {
       {markets.length > 0 && userStats?.total_bets === 0 && (
         <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-400">
           ⚠️ <strong>Indexer has no bet data — all charts, bets, and leaderboard will be blank.</strong>
-          {" "}Click <strong>Reset Indexer</strong> (red) to clear any stale scan position, then click <strong>Sync Indexer</strong>
-          {" "}until you see <code className="bg-yellow-900/40 px-1 rounded">from #81968790</code> in the result.
-          {" "}Repeat Sync ~15× to backfill all history.
+          {" "}Click <strong>☢️ Purge & Full Resync</strong> to wipe any stale data and start a clean sync from the beginning.
+          {" "}The auto-continue indexer will chain batches automatically until caught up.
         </div>
       )}
 
