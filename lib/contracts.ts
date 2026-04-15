@@ -286,7 +286,7 @@ export const OUTCOMES = ["NONE", "OVER", "UNDER"] as const
 
 // Chain config
 export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "43114", 10)
-export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://avax-mainnet.g.alchemy.com/v2/A4flIcxFitRYpoWndHzTe"
+export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "https://api.avax.network/ext/bc/C/rpc"
 export const EXPLORER_URL = CHAIN_ID === 43114
   ? "https://snowtrace.io"
   : "https://testnet.snowtrace.io"

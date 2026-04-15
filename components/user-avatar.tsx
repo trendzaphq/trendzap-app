@@ -8,23 +8,41 @@ interface UserAvatarProps {
   className?: string
 }
 
-// Derives a stable avatar seed from the wallet address.
-// Different wallets = different creatures. No API fetch required.
-function getAvatarUrl(address: string): string {
-  const seed = address ? address.replace(/^0x/i, "").slice(0, 12) : "anon"
-  return `https://api.dicebear.com/9.x/thumbs/svg?seed=${seed}&radius=50&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`
+const ANIMALS = [
+  "dog",
+  "fox",
+  "cat",
+  "rabbit",
+  "bear",
+  "panda",
+  "owl",
+  "deer",
+  "raccoon",
+  "penguin",
+  "wolf",
+  "hamster",
+] as const
+
+function getAnimalName(address: string): string {
+  if (!address) return "bear"
+  // Use last 8 hex chars → deterministic but spread across animals
+  const hex = address.toLowerCase().replace(/^0x/, "").slice(-8)
+  const num = parseInt(hex, 16)
+  return ANIMALS[num % ANIMALS.length]
 }
 
 export function UserAvatar({ address, size = 36, className }: UserAvatarProps) {
+  const animal = getAnimalName(address)
   return (
     <img
-      src={getAvatarUrl(address)}
+      src={`/avatars/${animal}.svg`}
       width={size}
       height={size}
-      className={cn("rounded-full shrink-0 bg-muted", className)}
-      alt="Avatar"
+      className={cn("rounded-full shrink-0", className)}
+      alt={animal}
+      draggable={false}
     />
   )
 }
 
-export { getAvatarUrl }
+export { getAnimalName }
