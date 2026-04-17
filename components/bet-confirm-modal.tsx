@@ -139,7 +139,7 @@ export function BetConfirmModal({
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              `Bet ${isOver ? "Over" : "Under"}`
+              `Bet ${isOver ? "Yes" : "No"}`
             )}
           </Button>
         </DialogFooter>
