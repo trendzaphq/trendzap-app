@@ -85,6 +85,22 @@ function InfoTooltip({ content, side = "top" }: { content: string; side?: "top" 
 
 const DRAFT_KEY = "tz_create_draft"
 
+function buildStructuredTitle(platform: string, metric: string, threshold: string, deadlineVal: string): string {
+  if (!threshold || Number(threshold) <= 0) return ""
+  const platformLabel =
+    platform === "youtube" ? "YouTube video" :
+    platform === "tiktok" ? "TikTok" :
+    platform === "instagram" ? "Instagram post" : "post"
+  const num = Number(threshold)
+  const formatted =
+    num >= 1_000_000 ? `${+(num / 1_000_000).toFixed(1)}M` :
+    num >= 1_000 ? `${+(num / 1_000).toFixed(1)}K` :
+    num.toLocaleString()
+  const metricLabel = METRIC_LABELS[metric]?.toLowerCase() ?? metric
+  const timeLabel = DEADLINES.find(d => d.value === deadlineVal)?.label ?? deadlineVal
+  return `Will this ${platformLabel} reach ${formatted} ${metricLabel} in ${timeLabel}?`
+}
+
 export default function CreateMarketPage() {
   const router = useRouter()
   const { wallets } = useWallets()
@@ -102,6 +118,7 @@ export default function CreateMarketPage() {
 
   // Track first render to prevent save effect from overwriting restore on mount
   const draftSaveBlocked = useRef(true)
+  const lastAutoTitle = useRef("")
 
   // Restore draft from localStorage — wallet-scoped (re-runs when wallet resolves)
   useEffect(() => {
@@ -272,9 +289,25 @@ export default function CreateMarketPage() {
   useEffect(() => {
     if (autoSuggestedTitle && !customTitle) {
       setCustomTitle(autoSuggestedTitle)
+      lastAutoTitle.current = autoSuggestedTitle
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSuggestedTitle])
+
+  // Regenerate structured title whenever metric / threshold / deadline changes
+  useEffect(() => {
+    if (!preview) return
+    const first = metricCombos[0]
+    if (!first?.threshold || Number(first.threshold) <= 0) return
+    const newTitle = buildStructuredTitle(preview.platform, first.metric, first.threshold, deadline)
+    if (!newTitle) return
+    // Only auto-update if user hasn't typed a custom title
+    if (!customTitle || customTitle === lastAutoTitle.current || customTitle === autoSuggestedTitle) {
+      setCustomTitle(newTitle)
+    }
+    lastAutoTitle.current = newTitle
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metricCombos, deadline, preview])
 
   const analyzeUrl = async () => {
     const validationError = getUrlError(url)
@@ -897,7 +930,7 @@ export default function CreateMarketPage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-1.5">
                       <Label>Your initial position</Label>
-                      <InfoTooltip content="Pick OVER if you believe the metric will reach the threshold. Pick UNDER if you think it won't. You can bet on either side." />
+                      <InfoTooltip content="Pick YES if you believe the post will reach the threshold. Pick NO if you think it won't." />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <button
@@ -909,7 +942,7 @@ export default function CreateMarketPage() {
                         }`}
                       >
                         <TrendingUp className={`h-5 w-5 mb-2 ${selectedPosition === "over" ? "text-primary" : "text-muted-foreground"}`} />
-                        <div className="font-bold text-sm">OVER</div>
+                        <div className="font-bold text-sm">YES</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
                           Will exceed {metricCombos[0]?.threshold ? Number(metricCombos[0].threshold).toLocaleString() : "—"} {METRIC_LABELS[metricCombos[0]?.metric] || "units"}
                         </div>
@@ -923,7 +956,7 @@ export default function CreateMarketPage() {
                         }`}
                       >
                         <TrendingDown className={`h-5 w-5 mb-2 ${selectedPosition === "under" ? "text-destructive" : "text-muted-foreground"}`} />
-                        <div className="font-bold text-sm">UNDER</div>
+                        <div className="font-bold text-sm">NO</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
                           Will stay below {metricCombos[0]?.threshold ? Number(metricCombos[0].threshold).toLocaleString() : "—"} {METRIC_LABELS[metricCombos[0]?.metric] || "units"}
                         </div>
@@ -1076,7 +1109,7 @@ export default function CreateMarketPage() {
 
                     <div className="pt-3 border-t border-border/40 space-y-1.5 text-xs text-muted-foreground">
                       <p className="font-semibold text-foreground text-xs">Resolution rules</p>
-                      <p>At deadline, the oracle reads the real metric value. If actual ≥ threshold, <strong className="text-primary">OVER</strong> wins. Otherwise <strong className="text-destructive">UNDER</strong> wins.</p>
+                      <p>At deadline, the oracle reads the real metric value. If actual ≥ threshold, <strong className="text-primary">YES</strong> wins. Otherwise <strong className="text-destructive">NO</strong> wins.</p>
                       <p>Winners share the losing pool proportionally to their shares (after a 3% fee).</p>
                     </div>
                   </div>
