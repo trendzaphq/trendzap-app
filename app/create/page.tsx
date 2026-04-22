@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useWallets, usePrivy } from "@privy-io/react-auth"
 import { CONTRACTS, EXPLORER_URL } from "@/lib/contracts"
+import { isAdminAddress } from "@/lib/admin"
 import { getSettlementInfo, parseSettlementAmount } from "@/hooks/use-market"
 import {
   Link2, Sparkles, TrendingUp, TrendingDown, Zap, Loader2,
@@ -107,7 +108,7 @@ export default function CreateMarketPage() {
   const { ready: privyReady, authenticated, login } = usePrivy()
 
   // Admin bypass — lower seed minimum for admin wallet
-  const isAdmin = wallets[0]?.address?.toLowerCase() === "0x05394029ea22767d2283bcd0be03b13353781212"
+  const isAdmin = isAdminAddress(wallets[0]?.address)
   const MIN_SEED = isAdmin ? 0.001 : 1.0
   const walletAddress = wallets[0]?.address?.toLowerCase() || ""
 
