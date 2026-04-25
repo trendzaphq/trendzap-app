@@ -159,7 +159,12 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
     )
   } else {
     // Default / "newest": highest market id first
-    displayMarkets = [...displayMarkets].sort((a, b) => b.id - a.id)
+    displayMarkets = [...displayMarkets].sort((a, b) => {
+      const numA = parseInt(String(a.id), 10)
+      const numB = parseInt(String(b.id), 10)
+      if (!isNaN(numA) && !isNaN(numB)) return numB - numA
+      return String(b.id).localeCompare(String(a.id))
+    })
   }
 
   if (contractsLoading) {

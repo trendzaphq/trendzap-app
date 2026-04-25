@@ -559,7 +559,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
               {Number(betAmount) > 0 && Number(betAmount) < 1 && (
                 <p className="text-xs text-destructive flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3 shrink-0" />
-                  Minimum bet is 1 USDC
+                  Minimum bet is 0.5 USDC
                 </p>
               )}
               <div className="flex gap-2">
@@ -608,7 +608,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
             <Button
               className="w-full gap-2 h-12 text-base font-semibold"
               size="lg"
-              disabled={!betAmount || Number(betAmount) < 1 || !selectedPosition || buyLoading || isResolved || isCancelled || isExpired}
+              disabled={!betAmount || Number(betAmount) < 0.5 || !selectedPosition || buyLoading || isResolved || isCancelled || isExpired}
               onClick={() => setShowConfirmModal(true)}
             >
               {buyLoading ? (

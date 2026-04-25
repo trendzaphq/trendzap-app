@@ -269,7 +269,7 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const [metric, setMetric] = useState("views")
   const [threshold, setThreshold] = useState("")
   const [deadline, setDeadline] = useState("24h")
-  const [seedAmount, setSeedAmount] = useState("0.001")
+  const [seedAmount, setSeedAmount] = useState("0.03")
   const [position, setPosition] = useState<"over" | "under">("over")
   const [title, setTitle] = useState("")
   const [loading, setLoading] = useState(false)
@@ -290,7 +290,7 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
 
   const reset = () => {
     setUrl(""); setMetric("views"); setThreshold(""); setDeadline("24h")
-    setSeedAmount("0.001"); setPosition("over"); setTitle(""); setTxHash(null)
+    setSeedAmount("0.03"); setPosition("over"); setTitle(""); setTxHash(null)
     setEmbedData(null); setAiResult(null)
   }
 
@@ -376,7 +376,7 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
 
       // Get settlement token info (USDC 6 decimals or native AVAX 18)
       const settlement = await getSettlementInfo(provider)
-      const betAmount = parseSettlementAmount(seedAmount || "0.001", settlement.decimals)
+      const betAmount = parseSettlementAmount(seedAmount || "0.03", settlement.decimals)
 
       // If ERC20, ensure allowance
       if (settlement.isERC20) {
@@ -573,8 +573,8 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Seed Amount <span className="text-xs text-muted-foreground">(USDC — min 0.001)</span></Label>
-                <Input type="number" min="0.001" step="0.001" className="font-mono"
+                <Label>Seed Amount <span className="text-xs text-muted-foreground">(USDC — min 0.03)</span></Label>
+                <Input type="number" min="0.03" step="0.01" className="font-mono"
                   value={seedAmount} onChange={(e) => setSeedAmount(e.target.value)} />
               </div>
             </>
