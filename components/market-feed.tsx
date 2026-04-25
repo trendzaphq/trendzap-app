@@ -23,9 +23,10 @@ interface EmbedPreview {
 interface MarketFeedProps {
   platform?: string
   sortBy?: string
+  statusFilter?: string
 }
 
-export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps) {
+export function MarketFeed({ platform = "", sortBy = "newest", statusFilter = "live" }: MarketFeedProps) {
   const { markets: onChainMarkets, loading: contractsLoading } = useMarketList()
   const [metaMap, setMetaMap] = useState<Record<number, MarketMeta>>({})
   const [embedMap, setEmbedMap] = useState<Record<number, EmbedPreview>>({})
@@ -110,13 +111,13 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
 
   const now = Math.floor(Date.now() / 1000)
 
-  const liveMarkets = onChainMarkets
-    .filter((m) => m.status === "ACTIVE" && m.endTime > now)
+  const mappedMarkets = onChainMarkets
     .map((m) => {
       const meta = metaMap[m.id]
       const embed = embedMap[m.id]
       const authorHandle = embed?.authorName
       return {
+        marketId: m.id,
         id: meta?.slug ?? String(m.id),
         platform: m.platform as "tiktok" | "youtube" | "x" | "instagram",
         thumbnail: meta?.thumbnail_url || embed?.thumbnailFromEmbed || "",
@@ -133,6 +134,9 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
         totalBets: 0,
         endsIn: formatTimeRemaining(m.endTime),
         endTime: m.endTime,
+        status: m.status,
+        outcome: m.outcome,
+        createdAt: Number.isFinite(m.createdAt) ? m.createdAt : 0,
         creator: m.creator.slice(0, 8) + "...",
         volume: m.totalVolume,
         // embed preview data
@@ -143,7 +147,18 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
       }
     })
 
-  let displayMarkets = platform ? liveMarkets.filter((m) => m.platform === platform) : liveMarkets
+  let displayMarkets = platform ? mappedMarkets.filter((m) => m.platform === platform) : mappedMarkets
+
+  // Status filtering
+  if (statusFilter === "live") {
+    displayMarkets = displayMarkets.filter((m) => m.status === "ACTIVE" && m.endTime > now)
+  } else if (statusFilter === "ending-today") {
+    displayMarkets = displayMarkets.filter(
+      (m) => m.status === "ACTIVE" && m.endTime > now && m.endTime - now <= 86400
+    )
+  } else if (statusFilter === "resolved") {
+    displayMarkets = displayMarkets.filter((m) => m.status === "RESOLVED" || m.outcome !== "NONE")
+  }
 
   // Basic sort
   if (sortBy === "ending") {
@@ -158,12 +173,12 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
       (a, b) => Math.abs(a.overPool - 50) - Math.abs(b.overPool - 50)
     )
   } else {
-    // Default / "newest": highest market id first
+    // Default / "newest": latest market creation first
     displayMarkets = [...displayMarkets].sort((a, b) => {
-      const numA = parseInt(String(a.id), 10)
-      const numB = parseInt(String(b.id), 10)
-      if (!isNaN(numA) && !isNaN(numB)) return numB - numA
-      return String(b.id).localeCompare(String(a.id))
+      const createdA = Number.isFinite(a.createdAt) && a.createdAt > 0 ? a.createdAt : 0
+      const createdB = Number.isFinite(b.createdAt) && b.createdAt > 0 ? b.createdAt : 0
+      if (createdA !== createdB) return createdB - createdA
+      return b.marketId - a.marketId
     })
   }
 
@@ -189,8 +204,8 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-      {displayMarkets.map((market, index) => (
-        <MarketCard key={`${market.id}-${index}`} {...market} />
+      {displayMarkets.map((market) => (
+        <MarketCard key={`${market.marketId}-${market.id}`} {...market} />
       ))}
     </div>
   )
