@@ -111,7 +111,7 @@ export default function CreateMarketPage() {
 
   // Admin bypass — lower seed minimum for admin wallet
   const isAdmin = isAdminAddress(wallets[0]?.address)
-  const MIN_SEED = isAdmin ? 0.001 : 1.0
+  const MIN_SEED = isAdmin ? 0.03 : 1.0
   const walletAddress = wallets[0]?.address?.toLowerCase() || ""
 
   // Auth guard — open login modal immediately if unauthenticated
@@ -550,7 +550,7 @@ export default function CreateMarketPage() {
               </div>
               <p className="text-sm text-muted-foreground">
                 {isAdmin
-                  ? "Admin mode — reduced seed minimum (0.001 USDC)"
+                  ? "Admin mode — reduced seed minimum (0.03 USDC)"
                   : "Turn viral content into a prediction market in under a minute"}
               </p>
             </div>
@@ -935,8 +935,8 @@ export default function CreateMarketPage() {
                       id="bet-amount"
                       type="number"
                       min={MIN_SEED}
-                      step={isAdmin ? "0.001" : "0.01"}
-                      placeholder={isAdmin ? "0.001" : "1"}
+                      step={isAdmin ? "0.01" : "0.01"}
+                      placeholder={isAdmin ? "0.03" : "1"}
                       value={betAmount}
                       onChange={(e) => setBetAmount(e.target.value)}
                       className={`h-11 text-lg font-mono ${Number(betAmount) > 0 && Number(betAmount) < MIN_SEED ? "border-destructive focus-visible:ring-destructive" : ""}`}
@@ -948,7 +948,7 @@ export default function CreateMarketPage() {
                       </p>
                     )}
                     <div className="flex gap-1.5">
-                      {(isAdmin ? ["0.001", "0.01", "0.05", "0.1"] : ["1", "2", "5", "10"]).map((a) => (
+                      {(isAdmin ? ["0.03", "0.05", "0.1", "0.5"] : ["1", "2", "5", "10"]).map((a) => (
                         <button
                           key={a}
                           onClick={() => setBetAmount(a)}
