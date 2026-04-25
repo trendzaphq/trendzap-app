@@ -106,6 +106,7 @@ export default function CreateMarketPage() {
   const router = useRouter()
   const { wallets } = useWallets()
   const { ready: privyReady, authenticated, login } = usePrivy()
+  const loginRequestedRef = useRef(false)
 
   // Admin bypass — lower seed minimum for admin wallet
   const isAdmin = isAdminAddress(wallets[0]?.address)
@@ -114,7 +115,9 @@ export default function CreateMarketPage() {
 
   // Auth guard — open login modal immediately if unauthenticated
   useEffect(() => {
-    if (privyReady && !authenticated) login()
+    if (!privyReady || authenticated || loginRequestedRef.current) return
+    loginRequestedRef.current = true
+    login()
   }, [privyReady, authenticated, login])
 
   // Track first render to prevent save effect from overwriting restore on mount

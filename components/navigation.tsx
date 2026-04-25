@@ -44,7 +44,7 @@ export function Navigation() {
   }, [ready])
 
   const privyReady = ready || privyTimedOut
-  const navAddress = wallets[0]?.address ?? ""
+  const navAddress = wallets[0]?.address ?? user?.wallet?.address ?? ""
 
   const isAdmin = isAdminAddress(navAddress)
 

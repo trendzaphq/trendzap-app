@@ -545,7 +545,7 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── Main admin page ──────────────────────────────────────────
 export default function AdminPage() {
-  const { authenticated } = usePrivy()
+  const { authenticated, user } = usePrivy()
   const { wallets } = useWallets()
   const { markets, loading: marketsLoading } = useMarketList()
 
@@ -682,7 +682,7 @@ export default function AdminPage() {
     }
   }
 
-  const connectedAddress = wallets[0]?.address
+  const connectedAddress = wallets[0]?.address ?? user?.wallet?.address
   const isAdmin = isAdminAddress(connectedAddress)
 
   // ── Access guard ──────────────────────────────────

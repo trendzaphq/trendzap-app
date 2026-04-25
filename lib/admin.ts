@@ -11,9 +11,9 @@ export const ADMIN_ADDRESSES = [
   "0x279fDC4Ffe0f9D0098A94A1b678e59E7367C35D0",
   "0x9348c247c64e6cEbedB98B6e186676Ff9405505e",
 
-]
+].map((address) => address.trim().toLowerCase())
 
 export function isAdminAddress(address: string | undefined | null): boolean {
   if (!address) return false
-  return ADMIN_ADDRESSES.includes(address.toLowerCase())
+  return ADMIN_ADDRESSES.includes(address.trim().toLowerCase())
 }

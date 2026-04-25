@@ -22,8 +22,9 @@ function extractYouTubeId(url: string): string | null {
 
 /** Extract plain tweet text from the blockquote in Twitter oEmbed HTML */
 function extractTweetText(html: string): string | null {
-  // Twitter oEmbed: <blockquote class="twitter-tweet"><p lang="en" dir="ltr">TEXT</p>&mdash; ...
-  const pMatch = html.match(/<p[^>]*lang="[^"]*"[^>]*>([\s\S]*?)<\/p>/)
+  // Twitter oEmbed markup can vary; grab the first paragraph inside the tweet blockquote.
+  const blockquote = html.match(/<blockquote[\s\S]*?<\/blockquote>/i)?.[0] ?? html
+  const pMatch = blockquote.match(/<p[^>]*>([\s\S]*?)<\/p>/i)
   if (!pMatch) return null
   // Strip HTML tags and decode common HTML entities
   return pMatch[1]
