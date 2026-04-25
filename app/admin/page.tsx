@@ -41,6 +41,62 @@ function detectPlatform(url: string): string {
   return "x"
 }
 
+const TITLE_STOPWORDS = new Set([
+  "the", "and", "for", "that", "with", "this", "from", "have", "your", "will", "about", "just",
+  "they", "them", "their", "there", "what", "when", "where", "which", "while", "into", "than",
+  "then", "been", "being", "were", "was", "are", "our", "you", "his", "her", "its", "not", "but",
+  "can", "all", "any", "how", "why", "out", "now", "new", "get", "got", "too", "via", "amp",
+  "http", "https", "com", "www", "x", "twitter", "youtube", "video", "post",
+])
+
+function hashText(input: string): number {
+  let hash = 0
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash)
+}
+
+function extractTopic(text: string | null | undefined): string | null {
+  if (!text) return null
+
+  const cleaned = text
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[@#][a-z0-9_]+/gi, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+
+  const freq = new Map<string, number>()
+  for (const token of cleaned.split(/\s+/)) {
+    if (!token || token.length < 4 || TITLE_STOPWORDS.has(token)) continue
+    freq.set(token, (freq.get(token) ?? 0) + 1)
+  }
+
+  const topic = [...freq.entries()].sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)[0]?.[0]
+  if (!topic) return null
+  return topic.charAt(0).toUpperCase() + topic.slice(1)
+}
+
+function buildAdminFallbackTitle(platform: string, authorName?: string, postText?: string | null): string {
+  const platformLabel = platform.toUpperCase()
+  const topic = extractTopic(postText)
+  const subject = topic ? `this ${topic} post` : "this post"
+  const authorSuffix = authorName ? ` (@${authorName})` : ""
+
+  const templates = [
+    `Will ${subject} on ${platformLabel} beat its target this cycle?${authorSuffix}`,
+    `Can ${subject} trend on ${platformLabel} and clear the line?${authorSuffix}`,
+    `Is ${subject} set to outperform typical ${platformLabel} engagement?${authorSuffix}`,
+    `Will momentum carry ${subject} into breakout range on ${platformLabel}?${authorSuffix}`,
+  ]
+
+  const seed = `${platformLabel}:${authorName ?? ""}:${postText ?? ""}`
+  const pick = hashText(seed) % templates.length
+  const title = templates[pick]
+  return title.length > 110 ? `${title.slice(0, 107)}...` : title
+}
+
 // ── Service health types ─────────────────────────────────────
 interface ServiceHealth {
   name: string
@@ -249,10 +305,8 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
           // Auto-populate title if still blank
           setTitle((prev) => {
             if (prev) return prev
-            const plat = detectPlatform(url).toUpperCase()
-            return d.author_name
-              ? `Will this ${plat} post hit its target? (@${d.author_name})`
-              : `Will this ${plat} post go viral?`
+            const platform = detectPlatform(url)
+            return buildAdminFallbackTitle(platform, d.author_name, d.post_text)
           })
         })
         .catch(() => {})
