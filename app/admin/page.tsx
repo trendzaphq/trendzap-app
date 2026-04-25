@@ -33,6 +33,7 @@ import { parseTxError } from "@/lib/tx-error"
 const PLATFORM_MAP: Record<string, number> = { x: 0, youtube: 1, tiktok: 2, instagram: 3 }
 const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
 const DURATIONS: Record<string, number> = { "1h": 3600, "6h": 21600, "24h": 86400, "3d": 259200, "7d": 604800 }
+const MIN_TWEET_FOLLOWERS = 50_000
 
 function detectPlatform(url: string): string {
   if (url.includes("twitter.com") || url.includes("x.com")) return "x"
@@ -349,6 +350,19 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
     const seed = Number(seedAmount)
     if (isNaN(seed) || seed <= 0) { toast.error("Invalid seed amount"); return }
 
+    const platform = detectPlatform(url)
+    if (platform === "x") {
+      const followers = embedData?.follower_count
+      if (followers === null || followers === undefined) {
+        toast.error("Follower count verification is required before creating a tweet market.")
+        return
+      }
+      if (followers < MIN_TWEET_FOLLOWERS) {
+        toast.error(`Tweet author must have at least ${MIN_TWEET_FOLLOWERS.toLocaleString()} followers.`)
+        return
+      }
+    }
+
     const wallet = wallets[0]
     if (!wallet) { toast.error("Connect admin wallet first"); return }
 
@@ -389,7 +403,6 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
       const startTime = now + 60
       const endTime = startTime + duration
       const resolutionTime = endTime + 300
-      const platform = detectPlatform(url)
 
       const iface = new EthersInterface([
         "function createMarket(tuple(string postUrl, uint8 platform, uint8 metricType, uint256 threshold, uint256 startTime, uint256 endTime, uint256 resolutionTime) params, uint256 initialBet, bool betOnOver) payable returns (uint256)",

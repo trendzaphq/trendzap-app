@@ -35,6 +35,7 @@ const DEADLINES = [
 ]
 
 const DURATIONS: Record<string, number> = { "1h": 3600, "6h": 21600, "24h": 86400, "3d": 259200, "7d": 604800 }
+const MIN_TWEET_FOLLOWERS = 50_000
 
 type Step = "url" | "details" | "risk" | "bet" | "done"
 
@@ -198,6 +199,8 @@ export default function CreateMarketPage() {
     setAutoSuggestedTitle("")
     setAutoViralityNote("")
     setCurrentStats(null)
+    setFollowerCount(null)
+    setFollowerBlocked(false)
     if (!url.trim() || !isValidPostUrl(url.trim())) {
       setEmbedUrl(null)
       return
@@ -240,6 +243,8 @@ export default function CreateMarketPage() {
 
   // Auto-called when embed loads — extracts post_text and generates AI title
   const handleEmbedData = async (data: EmbedData) => {
+    const platform = detectPlatform(url)
+
     // Store live stats for risk assessment + threshold validation
     if (data.stats) {
       setCurrentStats({
@@ -250,17 +255,24 @@ export default function CreateMarketPage() {
       })
     }
 
-    // Follower count guard
-    if (data.follower_count !== null && data.follower_count !== undefined) {
-      setFollowerCount(data.follower_count)
-      setFollowerBlocked(data.follower_count < 1000)
+    // Follower count guard for X/Twitter markets
+    if (platform === "x") {
+      if (data.follower_count !== null && data.follower_count !== undefined) {
+        setFollowerCount(data.follower_count)
+        setFollowerBlocked(data.follower_count < MIN_TWEET_FOLLOWERS)
+      } else {
+        setFollowerCount(null)
+        setFollowerBlocked(true)
+      }
+    } else {
+      setFollowerCount(null)
+      setFollowerBlocked(false)
     }
 
     const text = data.post_text?.trim()
     if (!text || text.length < 10) return
     setIsGeneratingTitle(true)
     try {
-      const platform = detectPlatform(url)
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -318,6 +330,18 @@ export default function CreateMarketPage() {
     if (validationError) { setUrlError(validationError); return }
     setIsAnalyzing(true)
     const platform = detectPlatform(url)
+    if (platform === "x") {
+      if (followerCount === null) {
+        setIsAnalyzing(false)
+        toast.error("We could not verify the tweet author's follower count. Please wait for embed data and try again.")
+        return
+      }
+      if (followerCount < MIN_TWEET_FOLLOWERS) {
+        setIsAnalyzing(false)
+        toast.error(`Tweet author must have at least ${MIN_TWEET_FOLLOWERS.toLocaleString()} followers.`)
+        return
+      }
+    }
     setPreview({
       platform,
       suggestedTitle: autoSuggestedTitle || `Will this ${platform.toUpperCase()} post go viral?`,
@@ -364,6 +388,16 @@ export default function CreateMarketPage() {
     const validCombos = metricCombos.filter(c => c.threshold && Number(c.threshold) > 0)
     if (validCombos.length === 0) { toast.error("Set at least one threshold"); return }
     if (!preview) { toast.error("Please analyze a URL first"); return }
+    if (preview.platform === "x") {
+      if (followerCount === null) {
+        toast.error("Follower count verification is required before creating a tweet market.")
+        return
+      }
+      if (followerCount < MIN_TWEET_FOLLOWERS) {
+        toast.error(`Tweet author must have at least ${MIN_TWEET_FOLLOWERS.toLocaleString()} followers.`)
+        return
+      }
+    }
     if (Number(betAmount) < MIN_SEED) { toast.error(`Minimum seed bet is ${MIN_SEED} USDC`); return }
 
     setCreating(true)
@@ -618,8 +652,8 @@ export default function CreateMarketPage() {
                       <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
                         <Users className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                         <span>
-                          This account has fewer than 1,000 followers ({followerCount.toLocaleString()}).
-                          Markets on micro-accounts have very low liquidity and are disabled.
+                          This account has fewer than {MIN_TWEET_FOLLOWERS.toLocaleString()} followers ({followerCount.toLocaleString()}).
+                          Tweet markets below this threshold are not allowed.
                         </span>
                       </div>
                     ) : (
