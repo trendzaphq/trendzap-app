@@ -35,6 +35,16 @@ const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, co
 const DURATIONS: Record<string, number> = { "1h": 3600, "6h": 21600, "24h": 86400, "3d": 259200, "7d": 604800 }
 const MIN_TWEET_FOLLOWERS = 50_000
 
+function getCurrentMetricValueFromEmbed(stats: Record<string, number> | null | undefined, metric: string): number | null {
+  if (!stats) return null
+  if (metric === "views") return stats.view_count ?? null
+  if (metric === "likes") return stats.like_count ?? null
+  if (metric === "retweets") return stats.retweet_count ?? null
+  if (metric === "comments") return (stats.reply_count ?? stats.comment_count) ?? null
+  if (metric === "shares") return stats.share_count ?? null
+  return null
+}
+
 function detectPlatform(url: string): string {
   if (url.includes("twitter.com") || url.includes("x.com")) return "x"
   if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube"
@@ -351,6 +361,43 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
     if (isNaN(seed) || seed <= 0) { toast.error("Invalid seed amount"); return }
 
     const platform = detectPlatform(url)
+    const thresholdNum = Number(threshold)
+    const currentMetricValue = getCurrentMetricValueFromEmbed(embedData?.stats as Record<string, number> | null | undefined, metric)
+    if (currentMetricValue !== null && thresholdNum <= currentMetricValue) {
+      toast.error(
+        `Current ${metric} (${currentMetricValue.toLocaleString()}) already meets/exceeds threshold (${thresholdNum.toLocaleString()}). Raise the threshold.`
+      )
+      return
+    }
+
+    // Risk preflight — block rejected markets before wallet prompt.
+    try {
+      const riskRes = await fetch("/api/risk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url,
+          platform,
+          metric,
+          threshold: thresholdNum,
+          current_value: currentMetricValue ?? 0,
+        }),
+        signal: AbortSignal.timeout(8000),
+      })
+      if (riskRes.ok) {
+        const riskData = await riskRes.json()
+        if (riskData?.recommendation === "reject") {
+          const reason = Array.isArray(riskData?.flags) && riskData.flags.length > 0
+            ? riskData.flags[0]
+            : "Risk engine rejected this market configuration."
+          toast.error(reason)
+          return
+        }
+      }
+    } catch {
+      // non-blocking: deterministic threshold guard above already enforced
+    }
+
     if (platform === "x") {
       const followers = embedData?.follower_count
       if (followers === null || followers === undefined) {

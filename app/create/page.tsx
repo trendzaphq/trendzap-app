@@ -356,6 +356,7 @@ export default function CreateMarketPage() {
     setRiskData(null)
     const firstMetric = metricCombos[0]?.metric ?? "views"
     const currentValue = currentStats?.[firstMetric] ?? 0
+    const thresholdValue = Number(metricCombos[0]?.threshold)
     try {
       const res = await fetch("/api/risk", {
         method: "POST",
@@ -364,14 +365,28 @@ export default function CreateMarketPage() {
           url,
           platform: preview?.platform,
           metric: firstMetric,
-          threshold: Number(metricCombos[0]?.threshold),
+          threshold: thresholdValue,
           current_value: currentValue,
         }),
         signal: AbortSignal.timeout(8000),
       })
       if (res.ok) {
         const data = await res.json()
-        setRiskData(data)
+        if (Number.isFinite(thresholdValue) && thresholdValue > 0 && currentValue >= thresholdValue) {
+          const flags = Array.isArray(data.flags) ? data.flags : []
+          setRiskData({
+            ...data,
+            risk_score: Math.max(Number(data.risk_score || 0), 95),
+            risk_level: "high",
+            recommendation: "reject",
+            flags: [
+              `Current ${firstMetric} (${currentValue.toLocaleString()}) already meets/exceeds threshold (${thresholdValue.toLocaleString()}).`,
+              ...flags,
+            ],
+          })
+        } else {
+          setRiskData(data)
+        }
       } else {
         setRiskData({ risk_score: 0, risk_level: "low", flags: [], recommendation: "approve" })
       }
@@ -387,7 +402,24 @@ export default function CreateMarketPage() {
     if (!wallet) { toast.error("Connect your wallet first"); return }
     const validCombos = metricCombos.filter(c => c.threshold && Number(c.threshold) > 0)
     if (validCombos.length === 0) { toast.error("Set at least one threshold"); return }
+    const invalidCombo = validCombos.find((c) => {
+      const cur = currentStats?.[c.metric]
+      const thr = Number(c.threshold)
+      return cur !== undefined && Number.isFinite(thr) && thr > 0 && cur >= thr
+    })
+    if (invalidCombo) {
+      const cur = currentStats?.[invalidCombo.metric] ?? 0
+      const thr = Number(invalidCombo.threshold)
+      toast.error(
+        `Current ${invalidCombo.metric} (${cur.toLocaleString()}) already meets threshold (${thr.toLocaleString()}). Raise the threshold.`
+      )
+      return
+    }
     if (!preview) { toast.error("Please analyze a URL first"); return }
+    if (riskData?.recommendation === "reject") {
+      toast.error("Risk checks rejected this market. Please adjust your threshold or metric.")
+      return
+    }
     if (preview.platform === "x") {
       if (followerCount === null) {
         toast.error("Follower count verification is required before creating a tweet market.")
@@ -907,7 +939,11 @@ export default function CreateMarketPage() {
                           <ArrowLeft className="h-4 w-4" />
                           Back
                         </Button>
-                        <Button className="flex-1 gap-2 font-semibold" onClick={() => setStep("bet")}>
+                        <Button
+                          className="flex-1 gap-2 font-semibold"
+                          onClick={() => setStep("bet")}
+                          disabled={riskData.recommendation === "reject"}
+                        >
                           Continue to Seed Bet
                           <ArrowRight className="h-4 w-4" />
                         </Button>
