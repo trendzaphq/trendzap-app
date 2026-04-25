@@ -33,12 +33,69 @@ import { parseTxError } from "@/lib/tx-error"
 const PLATFORM_MAP: Record<string, number> = { x: 0, youtube: 1, tiktok: 2, instagram: 3 }
 const METRIC_MAP: Record<string, number> = { likes: 0, views: 1, retweets: 2, comments: 3, shares: 4 }
 const DURATIONS: Record<string, number> = { "1h": 3600, "6h": 21600, "24h": 86400, "3d": 259200, "7d": 604800 }
+const MIN_TWEET_FOLLOWERS = 50_000
 
 function detectPlatform(url: string): string {
   if (url.includes("twitter.com") || url.includes("x.com")) return "x"
   if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube"
   if (url.includes("tiktok.com")) return "tiktok"
   return "x"
+}
+
+const TITLE_STOPWORDS = new Set([
+  "the", "and", "for", "that", "with", "this", "from", "have", "your", "will", "about", "just",
+  "they", "them", "their", "there", "what", "when", "where", "which", "while", "into", "than",
+  "then", "been", "being", "were", "was", "are", "our", "you", "his", "her", "its", "not", "but",
+  "can", "all", "any", "how", "why", "out", "now", "new", "get", "got", "too", "via", "amp",
+  "http", "https", "com", "www", "x", "twitter", "youtube", "video", "post",
+])
+
+function hashText(input: string): number {
+  let hash = 0
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(i)
+    hash |= 0
+  }
+  return Math.abs(hash)
+}
+
+function extractTopic(text: string | null | undefined): string | null {
+  if (!text) return null
+
+  const cleaned = text
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[@#][a-z0-9_]+/gi, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+
+  const freq = new Map<string, number>()
+  for (const token of cleaned.split(/\s+/)) {
+    if (!token || token.length < 4 || TITLE_STOPWORDS.has(token)) continue
+    freq.set(token, (freq.get(token) ?? 0) + 1)
+  }
+
+  const topic = [...freq.entries()].sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)[0]?.[0]
+  if (!topic) return null
+  return topic.charAt(0).toUpperCase() + topic.slice(1)
+}
+
+function buildAdminFallbackTitle(platform: string, authorName?: string, postText?: string | null): string {
+  const platformLabel = platform.toUpperCase()
+  const topic = extractTopic(postText)
+  const subject = topic ? `this ${topic} post` : "this post"
+  const authorSuffix = authorName ? ` (@${authorName})` : ""
+
+  const templates = [
+    `Will ${subject} on ${platformLabel} beat its target this cycle?${authorSuffix}`,
+    `Can ${subject} trend on ${platformLabel} and clear the line?${authorSuffix}`,
+    `Is ${subject} set to outperform typical ${platformLabel} engagement?${authorSuffix}`,
+    `Will momentum carry ${subject} into breakout range on ${platformLabel}?${authorSuffix}`,
+  ]
+
+  const seed = `${platformLabel}:${authorName ?? ""}:${postText ?? ""}`
+  const pick = hashText(seed) % templates.length
+  const title = templates[pick]
+  return title.length > 110 ? `${title.slice(0, 107)}...` : title
 }
 
 // ── Service health types ─────────────────────────────────────
@@ -249,10 +306,8 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
           // Auto-populate title if still blank
           setTitle((prev) => {
             if (prev) return prev
-            const plat = detectPlatform(url).toUpperCase()
-            return d.author_name
-              ? `Will this ${plat} post hit its target? (@${d.author_name})`
-              : `Will this ${plat} post go viral?`
+            const platform = detectPlatform(url)
+            return buildAdminFallbackTitle(platform, d.author_name, d.post_text)
           })
         })
         .catch(() => {})
@@ -295,6 +350,19 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
     const seed = Number(seedAmount)
     if (isNaN(seed) || seed <= 0) { toast.error("Invalid seed amount"); return }
 
+    const platform = detectPlatform(url)
+    if (platform === "x") {
+      const followers = embedData?.follower_count
+      if (followers === null || followers === undefined) {
+        toast.error("Follower count verification is required before creating a tweet market.")
+        return
+      }
+      if (followers < MIN_TWEET_FOLLOWERS) {
+        toast.error(`Tweet author must have at least ${MIN_TWEET_FOLLOWERS.toLocaleString()} followers.`)
+        return
+      }
+    }
+
     const wallet = wallets[0]
     if (!wallet) { toast.error("Connect admin wallet first"); return }
 
@@ -335,7 +403,6 @@ function AdminCreateDialog({ open, onClose }: { open: boolean; onClose: () => vo
       const startTime = now + 60
       const endTime = startTime + duration
       const resolutionTime = endTime + 300
-      const platform = detectPlatform(url)
 
       const iface = new EthersInterface([
         "function createMarket(tuple(string postUrl, uint8 platform, uint8 metricType, uint256 threshold, uint256 startTime, uint256 endTime, uint256 resolutionTime) params, uint256 initialBet, bool betOnOver) payable returns (uint256)",
