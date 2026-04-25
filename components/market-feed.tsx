@@ -157,6 +157,9 @@ export function MarketFeed({ platform = "", sortBy = "newest" }: MarketFeedProps
     displayMarkets = [...displayMarkets].sort(
       (a, b) => Math.abs(a.overPool - 50) - Math.abs(b.overPool - 50)
     )
+  } else {
+    // Default / "newest": highest market id first
+    displayMarkets = [...displayMarkets].sort((a, b) => b.id - a.id)
   }
 
   if (contractsLoading) {

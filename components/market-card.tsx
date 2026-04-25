@@ -167,14 +167,14 @@ export function MarketCard({
             <div className="flex flex-col items-center py-2.5 rounded-xl bg-primary/10 border border-primary/20 group-hover:bg-primary/15 transition-colors">
               <div className="flex items-center gap-1 mb-0.5">
                 <TrendingUp className="h-3 w-3 text-primary" />
-                <span className="text-[10px] text-muted-foreground font-semibold tracking-wider">OVER</span>
+                <span className="text-[10px] text-muted-foreground font-semibold tracking-wider">YES</span>
               </div>
               <span className="text-xl font-bold text-primary leading-none">{overPct}%</span>
             </div>
             <div className="flex flex-col items-center py-2.5 rounded-xl bg-destructive/10 border border-destructive/20 group-hover:bg-destructive/15 transition-colors">
               <div className="flex items-center gap-1 mb-0.5">
                 <TrendingDown className="h-3 w-3 text-destructive" />
-                <span className="text-[10px] text-muted-foreground font-semibold tracking-wider">UNDER</span>
+                <span className="text-[10px] text-muted-foreground font-semibold tracking-wider">NO</span>
               </div>
               <span className="text-xl font-bold text-destructive leading-none">{underPct}%</span>
             </div>

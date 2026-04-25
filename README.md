@@ -89,6 +89,10 @@ NEXT_PUBLIC_ORACLE_URL=
 NEXT_PUBLIC_RISK_URL=
 NEXT_PUBLIC_INTELLIGENCE_URL=
 
+# Admin route protection (required for /admin and /api/admin/*)
+ADMIN_BASIC_AUTH_USER=
+ADMIN_BASIC_AUTH_PASS=
+
 # Database
 DATABASE_URL=         # Neon PostgreSQL connection string
 

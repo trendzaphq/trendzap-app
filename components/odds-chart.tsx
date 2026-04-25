@@ -103,7 +103,7 @@ export function OddsChart({ marketId, threshold, seedPriceOver, seedPriceUnder }
             stroke="hsl(var(--primary))"
             strokeWidth={2}
             fill="url(#overGradient)"
-            name="Over"
+            name="Yes"
           />
           <Area
             type="monotone"
@@ -111,7 +111,7 @@ export function OddsChart({ marketId, threshold, seedPriceOver, seedPriceUnder }
             stroke="hsl(var(--destructive))"
             strokeWidth={2}
             fill="url(#underGradient)"
-            name="Under"
+            name="No"
           />
         </AreaChart>
       </ResponsiveContainer>

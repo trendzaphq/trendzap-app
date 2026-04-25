@@ -367,7 +367,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-primary font-semibold flex items-center gap-1">
                     <TrendingUp className="h-4 w-4" />
-                    {"Over"}
+                    {"Yes"}
                   </span>
                   <span className="font-mono">{isLive ? `${market.overPool}%` : `$${market.overPool.toLocaleString()}`}</span>
                 </div>
@@ -384,7 +384,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-destructive font-semibold flex items-center gap-1">
                     <TrendingDown className="h-4 w-4" />
-                    {"Under"}
+                    {"No"}
                   </span>
                   <span className="font-mono">{isLive ? `${market.underPool}%` : `$${market.underPool.toLocaleString()}`}</span>
                 </div>
@@ -589,7 +589,7 @@ export function MarketDetailView({ marketId }: MarketDetailViewProps) {
                   <span
                     className={`font-semibold ${selectedPosition === "over" ? "text-primary" : "text-destructive"}`}
                   >
-                    {selectedPosition === "over" ? "Over" : "Under"}
+                    {selectedPosition === "over" ? "Yes" : "No"}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
